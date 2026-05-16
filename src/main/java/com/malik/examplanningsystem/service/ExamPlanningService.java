@@ -2,6 +2,7 @@ package com.malik.examplanningsystem.service;
 
 import com.malik.examplanningsystem.entity.Classroom;
 import com.malik.examplanningsystem.entity.Exam;
+import com.malik.examplanningsystem.entity.ExamAssignment;
 import com.malik.examplanningsystem.entity.Instructor;
 import com.malik.examplanningsystem.entity.Student;
 import com.malik.examplanningsystem.exception.DuplicateResourceException;
@@ -47,17 +48,20 @@ public class ExamPlanningService {
                 .map(studentService::getStudentEntityById)
                 .collect(Collectors.toList());
 
-        for (Student student : students) {
-            if (examAssignmentRepository.existsByExamAndStudent(exam, student)) {
-                throw new DuplicateResourceException(
-                        "Student " + student.getStudentNo() + " is already assigned to this exam");
-            }
-            if (examAssignmentRepository.existsByStudentAndExam_ExamDateAndExam_ExamTime(
-                    student, exam.getExamDate(), exam.getExamTime())) {
-                throw new DuplicateResourceException(
-                        "Student " + student.getStudentNo() + " has a scheduling conflict at "
-                                + exam.getExamDate() + " " + exam.getExamTime());
-            }
+        List<ExamAssignment> existingExamAssignments = examAssignmentRepository.findByExamAndStudentIn(exam, students);
+        if (!existingExamAssignments.isEmpty()) {
+            Student firstConflict = existingExamAssignments.get(0).getStudent();
+            throw new DuplicateResourceException(
+                    "Student " + firstConflict.getStudentNo() + " is already assigned to this exam");
+        }
+
+        List<ExamAssignment> timeConflicts = examAssignmentRepository.findByStudentInAndExam_ExamDateAndExam_ExamTime(
+                students, exam.getExamDate(), exam.getExamTime());
+        if (!timeConflicts.isEmpty()) {
+            Student firstConflict = timeConflicts.get(0).getStudent();
+            throw new DuplicateResourceException(
+                    "Student " + firstConflict.getStudentNo() + " has a scheduling conflict at "
+                            + exam.getExamDate() + " " + exam.getExamTime());
         }
 
         List<Classroom> availableClassrooms = classroomRepository.findByIsAvailable(true)
@@ -81,10 +85,21 @@ public class ExamPlanningService {
 
         students.sort(Comparator.comparing(Student::getStudentNo));
 
+        Set<Long> instructorsInExam = invigilatorAssignmentRepository.findByExam(exam)
+                .stream().map(a -> a.getInstructor().getInstructorId()).collect(Collectors.toSet());
+        Set<Long> instructorsBusy = invigilatorAssignmentRepository.findByExam_ExamDateAndExam_ExamTime(exam.getExamDate(), exam.getExamTime())
+                .stream().map(a -> a.getInstructor().getInstructorId()).collect(Collectors.toSet());
+
+        List<Instructor> availableInstructors = instructorRepository.findAllByOrderByDutyCountAsc().stream()
+                .filter(Instructor::getIsAvailableForInvigilation)
+                .filter(i -> !instructorsInExam.contains(i.getInstructorId()))
+                .filter(i -> !instructorsBusy.contains(i.getInstructorId()))
+                .collect(Collectors.toList());
+
         List<Map<String, Object>> classroomSummaries = new ArrayList<>();
-        Set<Long> assignedInstructorIds = new HashSet<>();
         int studentIndex = 0;
         int totalInvigilatorsAssigned = 0;
+        int instructorIndex = 0;
 
         for (Classroom classroom : availableClassrooms) {
             if (studentIndex >= students.size()) break;
@@ -103,8 +118,17 @@ public class ExamPlanningService {
             int studentsInRoom = assignedStudentNos.size();
             int invigilatorsNeeded = calculateInvigilatorsNeeded(studentsInRoom);
 
-            List<Instructor> roomInvigilators = assignInvigilators(
-                    exam, classroom, invigilatorsNeeded, assignedInstructorIds);
+            if (instructorIndex + invigilatorsNeeded > availableInstructors.size()) {
+                 throw new InsufficientCapacityException(
+                    "Not enough available instructors. Required altogether: " + (instructorIndex + invigilatorsNeeded) + ", found available: " + availableInstructors.size());
+            }
+
+            List<Instructor> roomInvigilators = new ArrayList<>();
+            for (int i = 0; i < invigilatorsNeeded; i++) {
+                Instructor instructor = availableInstructors.get(instructorIndex++);
+                invigilatorAssignmentService.createInvigilatorAssignment(exam, instructor, classroom);
+                 roomInvigilators.add(instructor);
+            }
             totalInvigilatorsAssigned += roomInvigilators.size();
 
             Map<String, Object> roomSummary = new LinkedHashMap<>();
@@ -138,32 +162,7 @@ public class ExamPlanningService {
         return 3;
     }
 
-    private List<Instructor> assignInvigilators(Exam exam, Classroom classroom,
-                                                 int count, Set<Long> assignedInstructorIds) {
-        List<Instructor> candidates = instructorRepository.findAllByOrderByDutyCountAsc()
-                .stream()
-                .filter(Instructor::getIsAvailableForInvigilation)
-                .filter(i -> !assignedInstructorIds.contains(i.getInstructorId()))
-                .filter(i -> !invigilatorAssignmentRepository.existsByExamAndInstructor(exam, i))
-                .filter(i -> !invigilatorAssignmentRepository.existsByInstructorAndExam_ExamDateAndExam_ExamTime(
-                        i, exam.getExamDate(), exam.getExamTime()))
-                .collect(Collectors.toList());
 
-        if (candidates.size() < count) {
-            throw new InsufficientCapacityException(
-                    "Not enough available instructors for classroom " + classroom.getRoomName()
-                            + ". Required: " + count + ", available: " + candidates.size());
-        }
-
-        List<Instructor> assigned = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            Instructor instructor = candidates.get(i);
-            invigilatorAssignmentService.createInvigilatorAssignment(exam, instructor, classroom);
-            assignedInstructorIds.add(instructor.getInstructorId());
-            assigned.add(instructor);
-        }
-        return assigned;
-    }
 
     public Map<String, Object> autoScheduleExam(Long courseId, List<Long> studentIds, LocalDate preferredDate) {
         // TODO: Implement automatic exam scheduling

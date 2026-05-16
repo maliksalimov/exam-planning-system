@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,4 +22,6 @@ public interface ExamAssignmentRepository extends JpaRepository<ExamAssignment, 
     long countByExam(Exam exam);
     long countByExamAndClassroom(Exam exam, Classroom classroom);
     boolean existsByStudentAndExam_ExamDateAndExam_ExamTime(Student student, LocalDate examDate, LocalTime examTime);
+    List<ExamAssignment> findByExamAndStudentIn(Exam exam, Collection<Student> students);
+    List<ExamAssignment> findByStudentInAndExam_ExamDateAndExam_ExamTime(Collection<Student> students, LocalDate examDate, LocalTime examTime);
 }
