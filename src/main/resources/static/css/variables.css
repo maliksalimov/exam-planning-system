@@ -1,0 +1,52 @@
+:root {
+    /* 2.1.1: Color Palette - Education "Clean Daylight" Theme */
+    --color-bg-deep: hsl(215, 60%, 97%);
+    /* Pale Sky White */
+    --color-bg-surface: hsl(210, 40%, 98%);
+    /* Pure Surface White */
+    --color-primary: hsl(215, 75%, 42%);
+    /* Academic Blue */
+    --color-accent: hsl(198, 68%, 36%);
+    /* Teal Ink */
+    --color-text: hsl(215, 25%, 18%);
+    /* Deep Slate */
+    --color-muted: hsl(215, 15%, 52%);
+    /* Mid Gray */
+    --color-danger: hsl(4, 65%, 48%);
+    /* Alert Red */
+    --color-success: hsl(142, 52%, 36%);
+    /* Verified Green */
+
+    /* 2.1.2: Typography */
+    --font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    --font-size-sm: 13px;
+    --font-size-md: 15px;
+    --font-size-lg: 19px;
+    --font-size-xl: 26px;
+    --font-weight-normal: 400;
+    --font-weight-bold: 600;
+
+    /* 2.1.3: Spacing Scale */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 40px;
+
+    /* 2.1.4: Surface & Depth */
+    --glass-bg: hsla(215, 40%, 60%, 0.06);
+    --glass-border: hsla(215, 40%, 40%, 0.12);
+    --glass-blur: 12px;
+    --shadow-card: 0 2px 16px rgba(30, 60, 110, 0.08);
+    --shadow-glow: 0 0 16px hsla(215, 70%, 50%, 0.12);
+
+    /* 2.1.5: Shape Tokens */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 18px;
+    --radius-pill: 9999px;
+
+    /* 2.1.6: Motion Tokens */
+    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}

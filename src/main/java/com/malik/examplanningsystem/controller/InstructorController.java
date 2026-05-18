@@ -93,6 +93,12 @@ public class InstructorController {
         return ResponseEntity.ok(instructorService.updateInstructor(id, request));
     }
 
+    @PostMapping("/recalculate-duties")
+    public ResponseEntity<Void> recalculateDuties() {
+        instructorService.recalculateDutyCounts();
+        return ResponseEntity.ok().build();
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete an instructor")
     @ApiResponses({

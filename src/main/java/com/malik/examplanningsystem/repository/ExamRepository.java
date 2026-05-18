@@ -16,4 +16,5 @@ public interface ExamRepository extends JpaRepository<Exam, Long> {
     List<Exam> findByExamDateBetween(LocalDate startDate, LocalDate endDate);
     List<Exam> findByCourseAndExamDate(Course course, LocalDate examDate);
     boolean existsByClassroomAndExamDateAndExamTime(Classroom classroom, LocalDate examDate, LocalTime examTime);
+    List<Exam> findByExamDateAndExamTime(LocalDate examDate, LocalTime examTime);
 }

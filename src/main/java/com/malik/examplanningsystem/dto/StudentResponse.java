@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 public class StudentResponse {
 
     private Long studentId;
-    private String stringNo;
+    private String studentNo;
     private String tcNo;
     private String fullName;
     private Long facultyId;

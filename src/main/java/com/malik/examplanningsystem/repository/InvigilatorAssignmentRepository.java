@@ -21,4 +21,8 @@ public interface InvigilatorAssignmentRepository extends JpaRepository<Invigilat
     boolean existsByInstructorAndExam_ExamDateAndExam_ExamTime(Instructor instructor, LocalDate examDate, LocalTime examTime);
     long countByExam(Exam exam);
     long countByExamAndClassroom(Exam exam, Classroom classroom);
+    long countByInstructor(Instructor instructor);
+    
+    List<InvigilatorAssignment> findByExam_ExamDateAndExam_ExamTime(LocalDate examDate, LocalTime examTime);
 }
+
