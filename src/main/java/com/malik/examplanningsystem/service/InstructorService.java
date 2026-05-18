@@ -8,12 +8,12 @@ import com.malik.examplanningsystem.entity.User;
 import com.malik.examplanningsystem.exception.DuplicateResourceException;
 import com.malik.examplanningsystem.exception.ResourceNotFoundException;
 import com.malik.examplanningsystem.repository.InstructorRepository;
+import com.malik.examplanningsystem.repository.InvigilatorAssignmentRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 public class InstructorService {
 
     private final InstructorRepository instructorRepository;
+    private final InvigilatorAssignmentRepository invigilatorAssignmentRepository;
     private final DepartmentService departmentService;
     private final UserService userService;
 
@@ -112,6 +113,26 @@ public class InstructorService {
         Instructor instructor = getInstructorEntityById(id);
         instructor.setDutyCount(instructor.getDutyCount() + 1);
         instructorRepository.save(instructor);
+    }
+
+    @Transactional
+    public void decrementDutyCount(Long id) {
+        Instructor instructor = getInstructorEntityById(id);
+        if (instructor.getDutyCount() > 0) {
+            instructor.setDutyCount(instructor.getDutyCount() - 1);
+            instructorRepository.save(instructor);
+        }
+    }
+
+    @Transactional
+    public void recalculateDutyCounts() {
+        // This ensures the cached dutyCount field stays in sync with actual assignment records
+        List<Instructor> instructors = instructorRepository.findAll();
+        for (Instructor instructor : instructors) {
+            long count = invigilatorAssignmentRepository.countByInstructor(instructor);
+            instructor.setDutyCount((int) count);
+            instructorRepository.save(instructor);
+        }
     }
 
     private InstructorResponse convertToResponse(Instructor instructor){

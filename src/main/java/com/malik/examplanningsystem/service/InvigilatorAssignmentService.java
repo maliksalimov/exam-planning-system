@@ -95,10 +95,11 @@ public class InvigilatorAssignmentService {
 
     @Transactional
     public void deleteAssignment(Long id) {
-        if (!invigilatorAssignmentRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Invigilator assignment not found with id: " + id);
-        }
-        invigilatorAssignmentRepository.deleteById(id);
+        InvigilatorAssignment assignment = getAssignmentEntityById(id);
+        Long instructorId = assignment.getInstructor().getInstructorId();
+        
+        invigilatorAssignmentRepository.delete(assignment);
+        instructorService.decrementDutyCount(instructorId);
     }
 
     public InvigilatorAssignment getAssignmentEntityById(Long id) {
