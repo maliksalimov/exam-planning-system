@@ -1,20 +1,28 @@
 :root {
-    /* 2.1.1: Color Palette */
-    --color-bg-deep: hsl(220, 20%, 10%);
-    --color-bg-surface: hsl(220, 15%, 16%);
-    --color-primary: hsl(210, 100%, 60%);
-    --color-accent: hsl(280, 100%, 65%);
-    --color-text: hsl(0, 0%, 95%);
-    --color-muted: hsl(220, 10%, 65%);
-    --color-danger: hsl(350, 80%, 60%);
-    --color-success: hsl(150, 70%, 45%);
+    /* 2.1.1: Color Palette - Education "Clean Daylight" Theme */
+    --color-bg-deep: hsl(215, 60%, 97%);
+    /* Pale Sky White */
+    --color-bg-surface: hsl(210, 40%, 98%);
+    /* Pure Surface White */
+    --color-primary: hsl(215, 75%, 42%);
+    /* Academic Blue */
+    --color-accent: hsl(198, 68%, 36%);
+    /* Teal Ink */
+    --color-text: hsl(215, 25%, 18%);
+    /* Deep Slate */
+    --color-muted: hsl(215, 15%, 52%);
+    /* Mid Gray */
+    --color-danger: hsl(4, 65%, 48%);
+    /* Alert Red */
+    --color-success: hsl(142, 52%, 36%);
+    /* Verified Green */
 
     /* 2.1.2: Typography */
-    --font-family: 'Inter', system-ui, sans-serif;
-    --font-size-sm: 12px;
-    --font-size-md: 14px;
-    --font-size-lg: 18px;
-    --font-size-xl: 24px;
+    --font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    --font-size-sm: 13px;
+    --font-size-md: 15px;
+    --font-size-lg: 19px;
+    --font-size-xl: 26px;
     --font-weight-normal: 400;
     --font-weight-bold: 600;
 
@@ -25,20 +33,20 @@
     --space-lg: 24px;
     --space-xl: 40px;
 
-    /* 2.1.4: Glassmorphism */
-    --glass-bg: rgba(255, 255, 255, 0.05);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    /* 2.1.4: Surface & Depth */
+    --glass-bg: hsla(215, 40%, 60%, 0.06);
+    --glass-border: hsla(215, 40%, 40%, 0.12);
     --glass-blur: 12px;
-    --shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-    --shadow-glow: 0 0 12px rgba(184, 102, 255, 0.4);
+    --shadow-card: 0 2px 16px rgba(30, 60, 110, 0.08);
+    --shadow-glow: 0 0 16px hsla(215, 70%, 50%, 0.12);
 
     /* 2.1.5: Shape Tokens */
-    --radius-sm: 4px;
-    --radius-md: 8px;
-    --radius-lg: 16px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 18px;
     --radius-pill: 9999px;
 
     /* 2.1.6: Motion Tokens */
-    --transition-fast: 0.15s ease;
-    --transition-base: 0.25s ease;
+    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
