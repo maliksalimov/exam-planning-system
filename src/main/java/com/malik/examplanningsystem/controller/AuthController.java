@@ -5,6 +5,7 @@ import com.malik.examplanningsystem.dto.AuthResponse;
 import com.malik.examplanningsystem.dto.LoginRequest;
 import com.malik.examplanningsystem.dto.UserCreateRequest;
 import com.malik.examplanningsystem.dto.UserResponse;
+import com.malik.examplanningsystem.service.TokenBlacklistService;
 import com.malik.examplanningsystem.service.UserDetailsServiceImpl;
 import com.malik.examplanningsystem.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,7 +13,9 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -34,6 +37,7 @@ public class AuthController {
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtService jwtService;
     private final UserService userService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     @PostMapping("/login")
     @Operation(summary = "Login with credentials", description = "Authenticates a user and returns a JWT token valid for 24 hours")
@@ -50,6 +54,21 @@ public class AuthController {
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
         String token = jwtService.generateToken(userDetails);
         return ResponseEntity.ok(new AuthResponse(token));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Invalidates the current JWT token server-side")
+    @SecurityRequirement(name = "Bearer Authentication")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Logged out successfully", content = @Content),
+            @ApiResponse(responseCode = "400", description = "No token provided", content = @Content)
+    })
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            tokenBlacklistService.blacklist(authHeader.substring(7));
+        }
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/register")

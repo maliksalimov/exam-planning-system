@@ -28,5 +28,6 @@ public class ExamResponse {
     private String classroomName;
     private Integer classroomCapacity;
     private Boolean isCommonExam;
+    private Integer studentCount;
     private LocalDateTime createdAt;
 }

@@ -83,11 +83,11 @@ export default class ExamPlanningView {
         this._errorEl       = document.getElementById('ep-error');
 
         this._allStudents = [];
+        this._loadingStudents = false;
 
         try {
-            const [exams, students, departments] = await Promise.all([
+            const [exams, departments] = await Promise.all([
                 Api.request('admin/exams'),
-                Api.request('admin/students'),
                 Api.request('admin/departments')
             ]);
 
@@ -107,7 +107,6 @@ export default class ExamPlanningView {
                 this._deptFilter.appendChild(opt);
             });
 
-            this._allStudents = students;
             this._renderStudentList();
 
         } catch (err) {
@@ -115,10 +114,12 @@ export default class ExamPlanningView {
             Toast.error('Failed to load configuration data.');
         }
 
-        this._onSearch = () => this._applyFilters();
-        this._onDept   = () => this._applyFilters();
-        this._searchInput.addEventListener('input', this._onSearch);
+        this._onExamChange = () => this._reloadStudents();
+        this._onDept       = () => this._reloadStudents();
+        this._onSearch     = () => this._applySearch();
+        this._examSelect.addEventListener('change', this._onExamChange);
         this._deptFilter.addEventListener('change', this._onDept);
+        this._searchInput.addEventListener('input', this._onSearch);
 
         this._onSelectAll = () => this._setVisibleChecked(true);
         this._onClearAll  = () => this._setVisibleChecked(false);
@@ -136,17 +137,56 @@ export default class ExamPlanningView {
         this._resetBtn.addEventListener('click', this._onReset);
     }
 
+    async _reloadStudents() {
+        const examId = this._examSelect.value;
+        if (!examId) {
+            this._allStudents = [];
+            this._renderStudentList();
+            return;
+        }
+
+        const deptId = this._deptFilter.value;
+        const url = deptId
+            ? `admin/exams/${examId}/eligible-students?departmentId=${deptId}`
+            : `admin/exams/${examId}/eligible-students`;
+
+        this._studentList.innerHTML = '<div style="text-align:center; padding:16px; color:var(--color-muted);"><div class="loading-spinner" style="width:20px;height:20px;margin:0 auto 8px;"></div>Loading...</div>';
+        this._updateSelectedCount();
+
+        try {
+            this._allStudents = await Api.request(url);
+            this._renderStudentList();
+        } catch (err) {
+            this._studentList.innerHTML = `<div style="color:var(--color-danger); padding:8px; font-size:12px;">Failed to load students</div>`;
+        }
+    }
+
     _renderStudentList() {
+        const term = (this._searchInput?.value || '').toLowerCase();
         this._studentList.innerHTML = '';
+
+        if (!this._examSelect?.value) {
+            this._studentList.innerHTML = '<div style="color:var(--color-muted); padding:8px; font-size:12px; text-align:center;">Select an exam first</div>';
+            this._updateSelectedCount();
+            return;
+        }
+
+        if (this._allStudents.length === 0) {
+            this._studentList.innerHTML = '<div style="color:var(--color-muted); padding:8px; font-size:12px; text-align:center;">No eligible students</div>';
+            this._updateSelectedCount();
+            return;
+        }
+
         this._allStudents.forEach(student => {
             const label = document.createElement('label');
             label.className = 'checkbox-item ep-student-item';
-            label.dataset.deptId = student.departmentId ?? '';
+            const hidden = term && !(`${student.fullName} ${student.studentNo ?? ''}`).toLowerCase().includes(term);
+            if (hidden) label.style.display = 'none';
             label.innerHTML = `
                 <input type="checkbox" data-id="${student.studentId}" />
                 <div style="display: flex; flex-direction: column;">
                     <span style="font-size: var(--font-size-sm); font-weight: bold;">${student.fullName}</span>
-                    <span style="font-size: 11px; color: var(--color-muted);">${student.studentNo ?? student.stringNo ?? ''} - ${student.departmentName ?? ''}</span>
+                    <span style="font-size: 11px; color: var(--color-muted);">${student.studentNo ?? ''} - ${student.departmentName ?? ''}</span>
                 </div>
             `;
             this._studentList.appendChild(label);
@@ -154,14 +194,10 @@ export default class ExamPlanningView {
         this._updateSelectedCount();
     }
 
-    _applyFilters() {
+    _applySearch() {
         const term = (this._searchInput.value || '').toLowerCase();
-        const dept = this._deptFilter.value;
-        const items = this._studentList.querySelectorAll('.ep-student-item');
-        items.forEach(item => {
-            const matchesText = item.innerText.toLowerCase().includes(term);
-            const matchesDept = !dept || item.dataset.deptId === dept;
-            item.style.display = (matchesText && matchesDept) ? 'flex' : 'none';
+        this._studentList.querySelectorAll('.ep-student-item').forEach(item => {
+            item.style.display = (!term || item.innerText.toLowerCase().includes(term)) ? 'flex' : 'none';
         });
     }
 
@@ -370,6 +406,7 @@ export default class ExamPlanningView {
     }
 
     unmount() {
+        if (this._examSelect)    this._examSelect.removeEventListener('change', this._onExamChange);
         if (this._searchInput)   this._searchInput.removeEventListener('input', this._onSearch);
         if (this._deptFilter)    this._deptFilter.removeEventListener('change', this._onDept);
         if (this._selectAllBtn)  this._selectAllBtn.removeEventListener('click', this._onSelectAll);

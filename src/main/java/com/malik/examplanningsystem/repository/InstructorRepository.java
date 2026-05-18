@@ -18,6 +18,8 @@ public interface InstructorRepository extends JpaRepository<Instructor, Long> {
 
     Optional<Instructor> findByUser(User user);
 
+    Optional<Instructor> findByUser_Username(String username);
+
     List<Instructor> findByDepartment(Department department);
 
     List<Instructor> findByIsAvailableForInvigilationTrue();

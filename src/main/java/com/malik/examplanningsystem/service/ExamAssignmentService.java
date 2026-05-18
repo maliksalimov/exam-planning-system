@@ -51,7 +51,7 @@ public class ExamAssignmentService {
     }
 
     public List<ExamAssignmentResponse> getAllAssignments() {
-        return examAssignmentRepository.findAll().stream()
+        return examAssignmentRepository.findAllWithDetails().stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }
@@ -61,8 +61,7 @@ public class ExamAssignmentService {
     }
 
     public List<ExamAssignmentResponse> getAssignmentsByExam(Long examId) {
-        Exam exam = examService.getExamEntityById(examId);
-        return examAssignmentRepository.findByExam(exam).stream()
+        return examAssignmentRepository.findByExamIdWithDetails(examId).stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }

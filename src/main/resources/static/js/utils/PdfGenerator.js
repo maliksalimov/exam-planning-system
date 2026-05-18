@@ -8,9 +8,10 @@ export const PdfGenerator = {
         }
 
         const container = document.createElement('div');
-        container.style.position = 'absolute';
-        container.style.top = '-9999px';
-        container.style.width = '210mm'; // A4 width
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        container.style.width = '210mm';
         container.innerHTML = `
             <div style="font-family: 'Inter', sans-serif; color: #111; padding: 20px; font-size: 11px;">
                 ${htmlContent}
@@ -124,7 +125,7 @@ export const PdfGenerator = {
             ${header}
             <div style="margin-bottom: 20px; font-size: 12px; line-height: 1.6;">
                 <strong>Ad Soyad:</strong> ${student.fullName}<br>
-                <strong>Öğrenci No:</strong> ${student.stringNo}<br>
+                <strong>Öğrenci No:</strong> ${student.studentNo}<br>
                 <strong>Bölüm:</strong> ${student.departmentName || '-'}<br>
                 <strong>Fakülte:</strong> ${student.facultyName || '-'}
             </div>
@@ -155,7 +156,7 @@ export const PdfGenerator = {
             <div style="margin-top: 15px; font-size: 9px; color: #6b7280;">Bu belge bilgilendirme amaçlıdır.</div>
         `;
 
-        await this._generateFromHtml(html, `${student.studentNo ?? student.stringNo}_Sinav_Yeri`);
+        await this._generateFromHtml(html, `${student.studentNo}_Sinav_Yeri`);
     },
 
     async generateGeneralExamPlan(examData) {

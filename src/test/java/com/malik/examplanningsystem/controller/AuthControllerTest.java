@@ -3,6 +3,7 @@ package com.malik.examplanningsystem.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.malik.examplanningsystem.config.JwtService;
 import com.malik.examplanningsystem.dto.LoginRequest;
+import com.malik.examplanningsystem.service.TokenBlacklistService;
 import com.malik.examplanningsystem.service.UserDetailsServiceImpl;
 import com.malik.examplanningsystem.service.UserService;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,9 @@ public class AuthControllerTest {
 
     @MockBean
     private UserService userService;
+
+    @MockBean
+    private TokenBlacklistService tokenBlacklistService;
 
     @Autowired
     private ObjectMapper objectMapper;

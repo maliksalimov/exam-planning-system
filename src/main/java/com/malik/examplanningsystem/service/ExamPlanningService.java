@@ -71,7 +71,10 @@ public class ExamPlanningService {
 
         // ── Fetch classrooms free at this exact timeslot, largest first ──
         Set<Long> occupiedClassroomIds = examRepository.findByExamDateAndExamTime(exam.getExamDate(), exam.getExamTime())
-                .stream().map(e -> e.getClassroom().getClassroomId()).collect(Collectors.toSet());
+                .stream()
+                .filter(e -> e.getClassroom() != null)
+                .map(e -> e.getClassroom().getClassroomId())
+                .collect(Collectors.toSet());
 
         List<Classroom> availableClassrooms = classroomRepository.findByIsAvailable(true)
                 .stream()

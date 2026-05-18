@@ -46,8 +46,7 @@ public class ExamCreateRequest {
     @Schema(description = "ID of the course this exam belongs to", example = "3")
     private Long courseId;
 
-    @NotNull(message = "Classroom ID is required")
-    @Schema(description = "ID of the primary classroom for this exam", example = "1")
+    @Schema(description = "ID of the primary classroom for this exam (optional — assigned during planning)", example = "1")
     private Long classroomId;
 
     @Schema(description = "Whether this is a common exam shared across sections", example = "false")

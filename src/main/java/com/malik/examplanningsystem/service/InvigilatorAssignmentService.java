@@ -52,7 +52,7 @@ public class InvigilatorAssignmentService {
     }
 
     public List<InvigilatorAssignmentResponse> getAllAssignments() {
-        return invigilatorAssignmentRepository.findAll().stream()
+        return invigilatorAssignmentRepository.findAllWithDetails().stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
     }

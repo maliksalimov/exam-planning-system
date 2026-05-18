@@ -1,6 +1,7 @@
 package com.malik.examplanningsystem.controller;
 
 import com.malik.examplanningsystem.dto.StudentCreateRequest;
+import com.malik.examplanningsystem.dto.StudentImportResult;
 import com.malik.examplanningsystem.dto.StudentResponse;
 import com.malik.examplanningsystem.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,8 +14,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 import java.util.List;
 
@@ -115,5 +120,23 @@ public class StudentController {
     public ResponseEntity<Void> deleteStudent(@PathVariable Long id){
         studentService.deleteStudent(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Import students from CSV or Excel file",
+            description = "Columns: studentNo, tcNo, fullName, facultyId, departmentId. First row is header. Duplicate studentNo rows are skipped.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Import completed",
+                    content = @Content(schema = @Schema(implementation = StudentImportResult.class))),
+            @ApiResponse(responseCode = "400", description = "Unsupported file type or empty file", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content)
+    })
+    public ResponseEntity<StudentImportResult> importStudents(
+            @RequestParam("file") MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        StudentImportResult result = studentService.importStudents(file);
+        return ResponseEntity.ok(result);
     }
 }

@@ -63,6 +63,12 @@ export default class InstructorQueryView {
                                 🏛️ ${duty.campus} / ${duty.building} — <strong>${duty.classroom}</strong>
                             </div>
                         </div>
+                        <div class="result-room-card__section">
+                            <div style="font-size: var(--font-size-sm); color: var(--color-muted); font-weight: bold;">Sınıftaki Öğrenci Sayısı</div>
+                            <div style="font-size: var(--font-size-md);">
+                                👥 <strong>${duty.studentCount ?? '—'}</strong> öğrenci
+                            </div>
+                        </div>
                         <div style="display:flex; gap: var(--space-sm); margin-top: var(--space-xs);">
                             <button class="btn-secondary iq-pdf-sign" data-id="${duty.invigilationId}"
                                 style="font-size: 11px; padding: 4px 10px;">
@@ -89,7 +95,7 @@ export default class InstructorQueryView {
                             capacity: '—',
                             studentsAssigned: '—',
                             invigilatorRule: '',
-                            invigilatorNames: [duty.instructorName || 'Gözetmen'],
+                            invigilatorNames: [duty.instructorName || auth?.name || 'Gözetmen'],
                             studentNumbers: []
                         };
                         const mockExam = {

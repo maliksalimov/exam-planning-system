@@ -1,8 +1,12 @@
 package com.malik.examplanningsystem.controller;
 
+import com.malik.examplanningsystem.dto.ExamAssignmentResponse;
 import com.malik.examplanningsystem.dto.ExamCreateRequest;
 import com.malik.examplanningsystem.dto.ExamResponse;
+import com.malik.examplanningsystem.dto.StudentResponse;
+import com.malik.examplanningsystem.service.ExamAssignmentService;
 import com.malik.examplanningsystem.service.ExamService;
+import com.malik.examplanningsystem.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,6 +32,8 @@ import java.util.List;
 public class ExamController {
 
     private final ExamService examService;
+    private final ExamAssignmentService examAssignmentService;
+    private final StudentService studentService;
 
     @PostMapping
     @Operation(summary = "Create an exam")
@@ -99,6 +105,26 @@ public class ExamController {
     public ResponseEntity<List<ExamResponse>> getExamsByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(examService.getExamsByDate(date));
+    }
+
+    @GetMapping("/{id}/eligible-students")
+    @Operation(summary = "Get students eligible to be added to this exam",
+            description = "Returns students not yet assigned to this exam. If departmentId is provided, also excludes students from that department who have a conflicting exam at the same date and time.")
+    public ResponseEntity<List<StudentResponse>> getEligibleStudents(
+            @PathVariable Long id,
+            @RequestParam(required = false) Long departmentId) {
+        return ResponseEntity.ok(studentService.getEligibleStudents(id, departmentId));
+    }
+
+    @GetMapping("/{id}/students")
+    @Operation(summary = "Get students assigned to an exam")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Student assignment list returned"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Exam not found", content = @Content)
+    })
+    public ResponseEntity<List<ExamAssignmentResponse>> getStudentsByExam(@PathVariable Long id) {
+        return ResponseEntity.ok(examAssignmentService.getAssignmentsByExam(id));
     }
 
     @PutMapping("/{id}")

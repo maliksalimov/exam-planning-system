@@ -27,7 +27,7 @@ const routes = {
     '#/students': { view: StudentView, protected: true },
     '#/instructors': { view: InstructorView, protected: true },
     '#/exams': { view: ExamView, protected: true },
-    '#/student-query': { view: StudentQueryView, protected: true },
+    '#/student-query': { view: StudentQueryView, protected: false },
     '#/instructor-duties': { view: InstructorQueryView, protected: true },
     '#/conflicts': { view: ConflictsView, protected: true },
     '#/reports': { view: ReportsView, protected: true }
@@ -37,10 +37,22 @@ let currentView = null;
 
 const router = async () => {
     let hash = window.location.hash || '#/login';
-    const route = routes[hash] || routes['#/login'];
+    const route = routes[hash];
     const navSlot = document.getElementById('nav-slot');
 
-    // Route Guard
+    // Unknown route → go home based on auth state
+    if (!route) {
+        window.location.hash = Auth.isAuthenticated() ? '#/dashboard' : '#/login';
+        return;
+    }
+
+    // Authenticated user trying to open login → send to dashboard
+    if (hash === '#/login' && Auth.isAuthenticated()) {
+        window.location.hash = '#/dashboard';
+        return;
+    }
+
+    // Protected route without a valid session → send to login
     if (route.protected && !Auth.isAuthenticated()) {
         window.location.hash = '#/login';
         return;

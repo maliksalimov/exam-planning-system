@@ -12,7 +12,7 @@ export const Navbar = {
                 <a href="#/faculties" class="${window.location.hash === '#/faculties' ? 'active' : ''}">Fakülteler</a>
                 <a href="#/departments" class="${window.location.hash === '#/departments' ? 'active' : ''}">Bölümler</a>
                 <a href="#/courses" class="${window.location.hash === '#/courses' ? 'active' : ''}">Dersler</a>
-                <a href="#/classrooms" class="${window.location.hash === '#/classrooms' ? 'active' : ''}">Derslikler</a>
+                <a href="#/classrooms" class="${window.location.hash === '#/classrooms' ? 'active' : ''}">Sınıflar</a>
                 <a href="#/students" class="${window.location.hash === '#/students' ? 'active' : ''}">Öğrenciler</a>
                 <a href="#/instructors" class="${window.location.hash === '#/instructors' ? 'active' : ''}">Öğr. Elemanları</a>
                 <a href="#/exams" class="${window.location.hash === '#/exams' ? 'active' : ''}">Sınavlar</a>

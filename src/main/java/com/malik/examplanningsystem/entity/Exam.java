@@ -40,7 +40,7 @@ public class Exam {
     private Course course;
 
     @ManyToOne
-    @JoinColumn(name = "classroom_id", nullable = false)
+    @JoinColumn(name = "classroom_id", nullable = true)
     private Classroom classroom;
 
     @Column(nullable = false)

@@ -11,8 +11,20 @@ export const Auth = {
     isAuthenticated() {
         return !!this.getToken();
     },
-    logout() {
-        this.removeToken();
-        window.location.hash = '#/login';
+    async logout() {
+        const token = this.getToken();
+        try {
+            if (token) {
+                await fetch('http://localhost:8081/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            }
+        } catch (_) {
+            // network error — proceed with local logout regardless
+        } finally {
+            this.removeToken();
+            window.location.hash = '#/login';
+        }
     }
 };
