@@ -50,6 +50,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                // Public: anyone can query their exam location by student number
+                .requestMatchers("/api/student/query/**").permitAll()
+                // Instructor self-service: JWT required, any authenticated user
+                .requestMatchers("/api/instructor/duties").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
