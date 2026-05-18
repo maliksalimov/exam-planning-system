@@ -3,11 +3,34 @@ import { Navbar } from './components/Navbar.js';
 import LoginView from './views/LoginView.js';
 import DashboardView from './views/DashboardView.js';
 import ExamPlanningView from './views/ExamPlanningView.js';
+import FacultyView from './views/FacultyView.js';
+import DepartmentView from './views/DepartmentView.js';
+import CourseView from './views/CourseView.js';
+import ClassroomView from './views/ClassroomView.js';
+import StudentView from './views/StudentView.js';
+import InstructorView from './views/InstructorView.js';
+import ExamView from './views/ExamView.js';
+import StudentQueryView from './views/StudentQueryView.js';
+import InstructorQueryView from './views/InstructorQueryView.js';
+import ConflictsView from './views/ConflictsView.js';
+import ReportsView from './views/ReportsView.js';
+
 
 const routes = {
     '#/login': { view: LoginView, protected: false },
     '#/dashboard': { view: DashboardView, protected: true },
-    '#/exam-planning': { view: ExamPlanningView, protected: true }
+    '#/exam-planning': { view: ExamPlanningView, protected: true },
+    '#/faculties': { view: FacultyView, protected: true },
+    '#/departments': { view: DepartmentView, protected: true },
+    '#/courses': { view: CourseView, protected: true },
+    '#/classrooms': { view: ClassroomView, protected: true },
+    '#/students': { view: StudentView, protected: true },
+    '#/instructors': { view: InstructorView, protected: true },
+    '#/exams': { view: ExamView, protected: true },
+    '#/student-query': { view: StudentQueryView, protected: true },
+    '#/instructor-duties': { view: InstructorQueryView, protected: true },
+    '#/conflicts': { view: ConflictsView, protected: true },
+    '#/reports': { view: ReportsView, protected: true }
 };
 
 let currentView = null;

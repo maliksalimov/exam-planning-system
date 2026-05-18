@@ -9,11 +9,12 @@ import { Api, Toast } from '../api.js';
  *   formFields: [{ key, label, type, required?, options? }]
  */
 export class CrudView {
-    constructor({ title, endpoint, columns, formFields, idKey }) {
+    constructor({ title, endpoint, columns, formFields, idKey, actions }) {
         this.title = title;
         this.endpoint = endpoint;
         this.columns = columns;
         this.formFields = formFields;
+        this.actions = actions || [];
         this.idKey = idKey || 'id';
         this._data = [];
         this._editingId = null;
@@ -24,7 +25,10 @@ export class CrudView {
         <div class="page-container">
             <header class="page-header">
                 <h1>${this.title}</h1>
-                <button class="btn-primary" id="crud-add-btn">+ Add New</button>
+                <div style="display:flex; gap: var(--space-sm);">
+                    ${this.actions.map((a, i) => `<button class="btn-secondary crud-custom-action" data-index="${i}">${a.label}</button>`).join('')}
+                    <button class="btn-primary" id="crud-add-btn">+ Add New</button>
+                </div>
             </header>
 
             <div class="table-wrapper">
@@ -99,22 +103,40 @@ export class CrudView {
         this._closeBtn.addEventListener('click', this._onClose);
         this._form.addEventListener('submit', this._onSubmit);
         this._tableBody.addEventListener('click', this._onTableClick);
+        
+        // Custom Actions
+        document.querySelectorAll('.crud-custom-action').forEach(btn => {
+            btn.onclick = (e) => {
+                const idx = e.target.getAttribute('data-index');
+                if (this.actions[idx] && typeof this.actions[idx].onClick === 'function') {
+                    this.actions[idx].onClick();
+                }
+            };
+        });
 
         // Load select options for form fields that have them
         for (const f of this.formFields) {
-            if (f.type === 'select' && f.optionsEndpoint) {
-                try {
-                    const options = await Api.request(f.optionsEndpoint);
-                    const sel = document.getElementById(`field-${f.key}`);
-                    if (sel) {
+            if (f.type === 'select') {
+                const sel = document.getElementById(`field-${f.key}`);
+                if (!sel) continue;
+                if (f.options && Array.isArray(f.options)) {
+                    f.options.forEach(opt => {
+                        const o = document.createElement('option');
+                        o.value = typeof opt === 'object' ? opt.value : opt;
+                        o.textContent = typeof opt === 'object' ? opt.label : opt;
+                        sel.appendChild(o);
+                    });
+                } else if (f.optionsEndpoint) {
+                    try {
+                        const options = await Api.request(f.optionsEndpoint);
                         options.forEach(opt => {
                             const o = document.createElement('option');
                             o.value = opt[f.optionValue];
                             o.textContent = opt[f.optionLabel];
                             sel.appendChild(o);
                         });
-                    }
-                } catch (e) { console.warn('Failed to load options for', f.key); }
+                    } catch (e) { console.warn('Failed to load options for', f.key); }
+                }
             }
         }
 
@@ -156,9 +178,9 @@ export class CrudView {
             const el = document.getElementById(`field-${f.key}`);
             if (!el) return;
             if (f.type === 'checkbox') {
-                el.checked = editRow ? !!editRow[f.key] : false;
+                el.checked = editRow ? !!editRow[f.key] : (f.defaultValue ?? false);
             } else {
-                el.value = editRow ? (editRow[f.key] ?? '') : '';
+                el.value = editRow ? (editRow[f.key] ?? '') : (f.defaultValue ?? '');
             }
         });
 
@@ -179,7 +201,11 @@ export class CrudView {
             if (f.type === 'checkbox') {
                 body[f.key] = el.checked;
             } else if (f.type === 'number') {
-                body[f.key] = el.value ? parseInt(el.value) : null;
+                body[f.key] = el.value !== '' ? Number(el.value) : null;
+            } else if (f.type === 'select') {
+                // numeric IDs come back as numbers; static string options stay as strings
+                const v = el.value;
+                body[f.key] = v === '' ? null : (/^\d+$/.test(v) ? parseInt(v) : v);
             } else {
                 body[f.key] = el.value || null;
             }
@@ -206,6 +232,7 @@ export class CrudView {
 
     async _handleTableAction(e) {
         const btn = e.target.closest('.action-btn');
+        console.log('[CrudView] table click', { target: e.target, btn, id: btn?.dataset?.id });
         if (!btn) return;
         const id = btn.dataset.id;
 
@@ -215,13 +242,50 @@ export class CrudView {
         }
 
         if (btn.classList.contains('action-delete')) {
-            if (!confirm('Are you sure you want to delete this record?')) return;
+            console.log('[CrudView] delete clicked for id=', id, 'endpoint=', this.endpoint);
+            const ok = await this._confirmDelete();
+            if (!ok) {
+                console.log('[CrudView] delete cancelled by user');
+                return;
+            }
             try {
+                console.log('[CrudView] sending DELETE', `${this.endpoint}/${id}`);
                 await Api.request(`${this.endpoint}/${id}`, { method: 'DELETE' });
                 Toast.success('Deleted successfully');
                 await this._loadData();
-            } catch (err) { console.error(err); }
+            } catch (err) {
+                console.error('[CrudView] delete failed:', err);
+            }
         }
+    }
+
+    _confirmDelete() {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.style.display = 'flex';
+            overlay.style.zIndex = '10000';
+            overlay.innerHTML = `
+                <div class="modal-content glass-panel" style="max-width:400px;">
+                    <div class="modal-header">
+                        <h2>Silinməni təsdiqləyin</h2>
+                    </div>
+                    <div style="padding: var(--space-md);">
+                        <p style="margin-bottom: var(--space-md);">Bu qeydi silmək istədiyinizə əminsiniz?</p>
+                        <div style="display:flex; gap: var(--space-sm); justify-content:flex-end;">
+                            <button type="button" class="btn-secondary" data-act="cancel">Ləğv et</button>
+                            <button type="button" class="btn-primary" data-act="confirm" style="background:#d33;">Sil</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', (e) => {
+                const act = e.target.dataset?.act;
+                if (act === 'confirm') { overlay.remove(); resolve(true); }
+                else if (act === 'cancel' || e.target === overlay) { overlay.remove(); resolve(false); }
+            });
+        });
     }
 
     unmount() {
