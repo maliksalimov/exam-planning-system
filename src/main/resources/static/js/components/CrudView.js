@@ -282,7 +282,6 @@ export class CrudView {
 
     async _handleTableAction(e) {
         const btn = e.target.closest('.action-btn');
-        console.log('[CrudView] table click', { target: e.target, btn, id: btn?.dataset?.id });
         if (!btn) return;
         const id = btn.dataset.id;
 
@@ -292,19 +291,14 @@ export class CrudView {
         }
 
         if (btn.classList.contains('action-delete')) {
-            console.log('[CrudView] delete clicked for id=', id, 'endpoint=', this.endpoint);
             const ok = await this._confirmDelete();
-            if (!ok) {
-                console.log('[CrudView] delete cancelled by user');
-                return;
-            }
+            if (!ok) return;
             try {
-                console.log('[CrudView] sending DELETE', `${this.endpoint}/${id}`);
                 await Api.request(`${this.endpoint}/${id}`, { method: 'DELETE' });
                 Toast.success('Deleted successfully');
                 await this._loadData();
             } catch (err) {
-                console.error('[CrudView] delete failed:', err);
+                console.error('Delete failed:', err);
             }
         }
     }
