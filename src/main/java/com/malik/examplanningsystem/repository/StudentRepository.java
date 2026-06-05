@@ -4,6 +4,8 @@ import com.malik.examplanningsystem.entity.Department;
 import com.malik.examplanningsystem.entity.Faculty;
 import com.malik.examplanningsystem.entity.Student;
 import com.malik.examplanningsystem.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +19,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 
     @Query("SELECT s FROM Student s JOIN FETCH s.faculty JOIN FETCH s.department")
     List<Student> findAllWithDetails();
+
+    @Query(value = "SELECT s FROM Student s JOIN FETCH s.faculty JOIN FETCH s.department",
+           countQuery = "SELECT COUNT(s) FROM Student s")
+    Page<Student> findAllWithDetails(Pageable pageable);
 
     Optional<Student> findByStudentNo(String studentId);
 

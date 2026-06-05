@@ -20,6 +20,9 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -29,7 +32,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Service
@@ -79,6 +81,14 @@ public class StudentService {
                 .stream()
                 .map(this::convertToResponse)
                 .toList();
+    }
+
+    public Page<StudentResponse> getAllStudents(Pageable pageable) {
+        Page<Student> page = studentRepository.findAllWithDetails(pageable);
+        List<StudentResponse> content = page.getContent().stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+        return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
     public StudentResponse getStudentById(Long id){

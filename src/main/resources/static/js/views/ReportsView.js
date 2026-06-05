@@ -4,7 +4,7 @@ import { TNR_REGULAR, TNR_BOLD } from '../utils/TimesNewRomanFont.js';
 // ─── jsPDF helper ────────────────────────────────────────────────────────────
 function _getJsPDF() {
     const ctor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-    if (!ctor) throw new Error('jsPDF kütüphanesi yüklenmedi.');
+    if (!ctor) throw new Error('jsPDF library not loaded.');
     return ctor;
 }
 
@@ -30,12 +30,12 @@ function _buildPdf(title, subtitle, columns, rows, filename) {
     doc.setFont('TimesNewRoman', 'bold');
     doc.setFontSize(15);
     doc.setTextColor(30, 58, 138);
-    doc.text('ÜNİVERSİTE SINAV YÖNETİM SİSTEMİ', 105, 15, { align: 'center' });
+    doc.text('UNIVERSITY EXAM MANAGEMENT SYSTEM', 105, 15, { align: 'center' });
 
     doc.setFont('TimesNewRoman', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(75, 85, 99);
-    doc.text('Sınav Planlama ve Gözetmen Atama Modülü', 105, 22, { align: 'center' });
+    doc.text('Exam Planning and Invigilator Assignment Module', 105, 22, { align: 'center' });
 
     doc.setFont('TimesNewRoman', 'bold');
     doc.setFontSize(14);
@@ -58,7 +58,7 @@ function _buildPdf(title, subtitle, columns, rows, filename) {
     doc.setFont('TimesNewRoman', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
-    doc.text('Oluşturulma: ' + new Date().toLocaleString('tr-TR'), 200, lineY + 5, { align: 'right' });
+    doc.text('Generated: ' + new Date().toLocaleString(), 200, lineY + 5, { align: 'right' });
 
     // ── Table ──
     doc.autoTable({
@@ -97,50 +97,50 @@ export default class ReportsView {
         return `
         <div class="page-container">
             <header class="page-header">
-                <h1>📊 Raporlar ve PDF Çıktıları</h1>
+                <h1>📊 Reports & PDF Exports</h1>
             </header>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-lg);">
 
-                <!-- SINIF BAZLI SINAV LİSTESİ -->
+                <!-- CLASSROOM EXAM LIST -->
                 <div class="card" style="display: flex; flex-direction: column; gap: var(--space-md);">
-                    <h3 style="color: var(--color-primary); margin: 0;">🏫 Sınıf Bazlı Sınav Listesi</h3>
+                    <h3 style="color: var(--color-primary); margin: 0;">🏫 Classroom Exam List</h3>
                     <p style="color: var(--color-muted); font-size: var(--font-size-sm); margin: 0;">
-                        Seçilen sınav için sınıfları, sınavları ve gözetmenleri gösteren liste.
+                        Classrooms, exams, and invigilators for the selected exam.
                     </p>
                     <div class="form-group">
-                        <label class="form-label" for="rpt-exam-cls">Sınav</label>
+                        <label class="form-label" for="rpt-exam-cls">Exam</label>
                         <select id="rpt-exam-cls" class="form-input">
-                            <option value="">-- Sınav Seçin --</option>
+                            <option value="">-- Select Exam --</option>
                         </select>
                     </div>
-                    <button class="btn-primary" id="rpt-cls-pdf">📄 PDF Oluştur</button>
+                    <button class="btn-primary" id="rpt-cls-pdf">📄 Generate PDF</button>
                     <div id="rpt-cls-preview" style="font-size: var(--font-size-sm); color: var(--color-muted);"></div>
                 </div>
 
-                <!-- GÖZETMEN GÖREV DAĞILIM LİSTESİ -->
+                <!-- INVIGILATOR DUTY ASSIGNMENT -->
                 <div class="card" style="display: flex; flex-direction: column; gap: var(--space-md);">
-                    <h3 style="color: var(--color-accent); margin: 0;">📋 Gözetmen Görev Dağılımı</h3>
+                    <h3 style="color: var(--color-accent); margin: 0;">📋 Invigilator Duty Assignment</h3>
                     <p style="color: var(--color-muted); font-size: var(--font-size-sm); margin: 0;">
-                        Seçilen sınavın gözetmen görevlerinin dağılım listesi.
+                        Invigilator duty distribution list for the selected exam.
                     </p>
                     <div class="form-group">
-                        <label class="form-label" for="rpt-exam-inv">Sınav</label>
+                        <label class="form-label" for="rpt-exam-inv">Exam</label>
                         <select id="rpt-exam-inv" class="form-input">
-                            <option value="">-- Sınav Seçin --</option>
+                            <option value="">-- Select Exam --</option>
                         </select>
                     </div>
-                    <button class="btn-accent" id="rpt-inv-pdf" style="background: var(--color-accent);">📄 PDF Oluştur</button>
+                    <button class="btn-accent" id="rpt-inv-pdf" style="background: var(--color-accent);">📄 Generate PDF</button>
                     <div id="rpt-inv-preview" style="font-size: var(--font-size-sm); color: var(--color-muted);"></div>
                 </div>
 
-                <!-- TÜM GÖZETMEN İŞ YÜKÜ -->
+                <!-- INVIGILATOR WORKLOAD REPORT -->
                 <div class="card" style="display: flex; flex-direction: column; gap: var(--space-md); grid-column: 1/-1;">
-                    <h3 style="color: var(--color-success); margin: 0;">⚖️ Gözetmen İş Yükü Raporu</h3>
+                    <h3 style="color: var(--color-success); margin: 0;">⚖️ Invigilator Workload Report</h3>
                     <p style="color: var(--color-muted); font-size: var(--font-size-sm); margin: 0;">
-                        Tüm öğretim elemanlarının toplam gözetmenlik sayılarını gösteren dağılım listesi.
+                        Total invigilator duty counts for all instructors.
                     </p>
-                    <button class="btn-secondary" id="rpt-load-pdf">📄 İş Yükü Listesi PDF</button>
+                    <button class="btn-secondary" id="rpt-load-pdf">📄 Workload Report PDF</button>
                     <div id="rpt-load-preview"></div>
                 </div>
 
@@ -152,7 +152,7 @@ export default class ReportsView {
     async mount() {
         // ── Populate exam dropdowns ────────────────────────────────
         try {
-            const exams = await Api.request('admin/exams');
+            const exams = await Api.getAll('admin/exams');
             const clsSel = document.getElementById('rpt-exam-cls');
             const invSel = document.getElementById('rpt-exam-inv');
             exams.forEach(e => {
@@ -167,26 +167,26 @@ export default class ReportsView {
                 });
             });
         } catch (err) {
-            Toast.error('Sınavlar yüklenemedi: ' + err.message);
+            Toast.error('Failed to load exams: ' + err.message);
         }
 
-        // ── Sınıf bazlı sınav listesi ─────────────────────────────
+        // ── Classroom exam list ───────────────────────────────────
         document.getElementById('rpt-cls-pdf').onclick = async () => {
             const sel = document.getElementById('rpt-exam-cls');
             const examId = sel.value;
-            if (!examId) { Toast.error('Önce bir sınav seçin.'); return; }
+            if (!examId) { Toast.error('Please select an exam first.'); return; }
             const examOpt = sel.options[sel.selectedIndex];
             const examName = examOpt.dataset.name;
             const examDate = examOpt.dataset.date;
             const preview = document.getElementById('rpt-cls-preview');
             const btn = document.getElementById('rpt-cls-pdf');
             btn.disabled = true;
-            preview.textContent = 'Veri yükleniyor…';
+            preview.textContent = 'Loading data…';
             try {
                 const all = await Api.request('admin/invigilator-assignments');
                 const filtered = all.filter(a => String(a.examId) === String(examId));
                 if (!filtered.length) {
-                    preview.textContent = '⚠ Bu sınav için kayıtlı atama bulunamadı.';
+                    preview.textContent = '⚠ No assignments found for this exam.';
                     return;
                 }
 
@@ -197,7 +197,7 @@ export default class ReportsView {
                     byRoom[a.classroomName].invigilators.push(a.instructorName);
                 });
 
-                const columns = ['Derslik', 'Saat', 'Sınav Adı', 'Gözetmen(ler)'];
+                const columns = ['Classroom', 'Time', 'Exam', 'Invigilator(s)'];
                 const rows = Object.entries(byRoom).map(([room, d]) => [
                     room,
                     String(d.examTime || ''),
@@ -206,41 +206,41 @@ export default class ReportsView {
                 ]);
 
                 _buildPdf(
-                    'Sınıf Bazlı Sınav Listesi',
+                    'Classroom Exam List',
                     `${examName} | ${examDate}`,
                     columns, rows,
-                    `${examDate}_Sinif_Sinav_Listesi`
+                    `${examDate}_Classroom_Exam_List`
                 );
-                preview.textContent = `✅ ${rows.length} sınıf için PDF oluşturuldu.`;
+                preview.textContent = `✅ PDF generated for ${rows.length} classroom(s).`;
             } catch (err) {
                 console.error(err);
-                preview.textContent = 'Hata: ' + err.message;
+                preview.textContent = 'Error: ' + err.message;
             } finally {
                 btn.disabled = false;
             }
         };
 
-        // ── Gözetmen görev dağılım listesi ────────────────────────
+        // ── Invigilator duty assignment ───────────────────────────
         document.getElementById('rpt-inv-pdf').onclick = async () => {
             const sel = document.getElementById('rpt-exam-inv');
             const examId = sel.value;
-            if (!examId) { Toast.error('Önce bir sınav seçin.'); return; }
+            if (!examId) { Toast.error('Please select an exam first.'); return; }
             const examOpt = sel.options[sel.selectedIndex];
             const examName = examOpt.dataset.name;
             const examDate = examOpt.dataset.date;
             const preview = document.getElementById('rpt-inv-preview');
             const btn = document.getElementById('rpt-inv-pdf');
             btn.disabled = true;
-            preview.textContent = 'Veri yükleniyor…';
+            preview.textContent = 'Loading data…';
             try {
                 const all = await Api.request('admin/invigilator-assignments');
                 const filtered = all.filter(a => String(a.examId) === String(examId));
                 if (!filtered.length) {
-                    preview.textContent = '⚠ Bu sınav için kayıtlı atama bulunamadı.';
+                    preview.textContent = '⚠ No assignments found for this exam.';
                     return;
                 }
 
-                const columns = ['Sıra', 'Gözetmen', 'Derslik', 'Saat'];
+                const columns = ['#', 'Invigilator', 'Classroom', 'Time'];
                 const rows = filtered.map((a, i) => [
                     String(i + 1),
                     a.instructorName,
@@ -249,31 +249,31 @@ export default class ReportsView {
                 ]);
 
                 _buildPdf(
-                    'Gözetmen Görev Dağılım Listesi',
+                    'Invigilator Duty Assignment List',
                     `${examName} | ${examDate}`,
                     columns, rows,
-                    `${examDate}_Gozetmen_Gorevlendirme`
+                    `${examDate}_Invigilator_Duties`
                 );
-                preview.textContent = `✅ ${rows.length} görev için PDF oluşturuldu.`;
+                preview.textContent = `✅ PDF generated for ${rows.length} assignment(s).`;
             } catch (err) {
                 console.error(err);
-                preview.textContent = 'Hata: ' + err.message;
+                preview.textContent = 'Error: ' + err.message;
             } finally {
                 btn.disabled = false;
             }
         };
 
-        // ── İş yükü raporu ────────────────────────────────────────
+        // ── Invigilator workload report ───────────────────────────
         document.getElementById('rpt-load-pdf').onclick = async () => {
             const preview = document.getElementById('rpt-load-preview');
             const btn = document.getElementById('rpt-load-pdf');
             btn.disabled = true;
-            preview.textContent = 'Veri yükleniyor…';
+            preview.textContent = 'Loading data…';
             try {
-                const instructors = await Api.request('admin/instructors');
+                const instructors = await Api.getAll('admin/instructors');
                 const sorted = [...instructors].sort((a, b) => (b.dutyCount || 0) - (a.dutyCount || 0));
 
-                const columns = ['Sıra', 'Öğretim Elemanı', 'Bölüm', 'Toplam Görev'];
+                const columns = ['#', 'Instructor', 'Department', 'Total Duties'];
                 const rows = sorted.map((i, idx) => [
                     String(idx + 1),
                     i.fullName,
@@ -283,17 +283,17 @@ export default class ReportsView {
 
                 const today = new Date().toISOString().slice(0, 10);
                 _buildPdf(
-                    'Gözetmen İş Yükü Raporu',
-                    `Tüm Dönem — ${today}`,
+                    'Invigilator Workload Report',
+                    `All Terms — ${today}`,
                     columns, rows,
-                    `${today}_Is_Yuku_Raporu`
+                    `${today}_Workload_Report`
                 );
                 preview.innerHTML = sorted.map(i =>
                     `<span class="badge badge--info" style="margin:2px">${i.fullName}: ${i.dutyCount ?? 0}</span>`
                 ).join('');
             } catch (err) {
                 console.error(err);
-                preview.textContent = 'Hata: ' + err.message;
+                preview.textContent = 'Error: ' + err.message;
             } finally {
                 btn.disabled = false;
             }

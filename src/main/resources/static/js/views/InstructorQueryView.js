@@ -28,8 +28,8 @@ export default class InstructorQueryView {
                 this._result.innerHTML = `
                     <div class="card" style="text-align: center; color: var(--color-muted); padding: var(--space-xl);">
                         <div style="font-size: 48px; margin-bottom: var(--space-md);">📭</div>
-                        <h3>Atanmış görev bulunamadı.</h3>
-                        <p>Şu anda sizi bekleyen aktif bir gözetmenlik görevi yok.</p>
+                        <h3>No duties assigned.</h3>
+                        <p>You have no active invigilator duties at the moment.</p>
                     </div>`;
                 return;
             }

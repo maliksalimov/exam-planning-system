@@ -18,6 +18,10 @@ export class CrudView {
         this.idKey = idKey || 'id';
         this._data = [];
         this._editingId = null;
+        this._page = 0;
+        this._totalPages = 0;
+        this._totalElements = 0;
+        this._pageSize = 50;
     }
 
     getHtml() {
@@ -43,6 +47,14 @@ export class CrudView {
                         <tr><td colspan="${this.columns.length + 1}" style="text-align:center">Loading...</td></tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div id="crud-pagination" style="display:flex; align-items:center; justify-content:space-between; margin-top: var(--space-md); display:none;">
+                <span id="crud-page-info" style="color: var(--color-muted); font-size: 0.875rem;"></span>
+                <div style="display:flex; gap: var(--space-sm);">
+                    <button class="btn-secondary" id="crud-prev-btn" disabled>← Prev</button>
+                    <button class="btn-secondary" id="crud-next-btn" disabled>Next →</button>
+                </div>
             </div>
 
             <!-- Modal -->
@@ -99,10 +111,20 @@ export class CrudView {
         this._onSubmit = (e) => { e.preventDefault(); this._handleSubmit(); };
         this._onTableClick = (e) => this._handleTableAction(e);
 
+        this._pagination = document.getElementById('crud-pagination');
+        this._pageInfo   = document.getElementById('crud-page-info');
+        this._prevBtn    = document.getElementById('crud-prev-btn');
+        this._nextBtn    = document.getElementById('crud-next-btn');
+
+        this._onPrev = () => { if (this._page > 0) { this._page--; this._loadData(); } };
+        this._onNext = () => { if (this._page < this._totalPages - 1) { this._page++; this._loadData(); } };
+
         this._addBtn.addEventListener('click', this._onAdd);
         this._closeBtn.addEventListener('click', this._onClose);
         this._form.addEventListener('submit', this._onSubmit);
         this._tableBody.addEventListener('click', this._onTableClick);
+        if (this._prevBtn) this._prevBtn.addEventListener('click', this._onPrev);
+        if (this._nextBtn) this._nextBtn.addEventListener('click', this._onNext);
         
         // Custom Actions
         document.querySelectorAll('.crud-custom-action').forEach(btn => {
@@ -128,7 +150,7 @@ export class CrudView {
                     });
                 } else if (f.optionsEndpoint) {
                     try {
-                        const options = await Api.request(f.optionsEndpoint);
+                        const options = await Api.getAll(f.optionsEndpoint);
                         options.forEach(opt => {
                             const o = document.createElement('option');
                             o.value = opt[f.optionValue];
@@ -145,13 +167,41 @@ export class CrudView {
 
     async _loadData() {
         try {
-            this._data = await Api.request(this.endpoint);
+            const url = `${this.endpoint}?page=${this._page}&size=${this._pageSize}`;
+            const res = await Api.request(url);
+
+            // Handle both paginated (has 'content') and plain array responses
+            if (res && typeof res === 'object' && Array.isArray(res.content)) {
+                this._data = res.content;
+                this._totalPages = res.totalPages;
+                this._totalElements = res.totalElements;
+            } else {
+                this._data = Array.isArray(res) ? res : [];
+                this._totalPages = 0;
+                this._totalElements = this._data.length;
+            }
+
             if (!this._tableBody) return;
             this._renderTable();
+            this._renderPagination();
         } catch (err) {
             console.error(err);
             Toast.error('Failed to load data');
         }
+    }
+
+    _renderPagination() {
+        if (!this._pagination) return;
+        if (this._totalPages <= 1) {
+            this._pagination.style.display = 'none';
+            return;
+        }
+        this._pagination.style.display = 'flex';
+        const from = this._page * this._pageSize + 1;
+        const to   = Math.min(from + this._data.length - 1, this._totalElements);
+        this._pageInfo.textContent = `${from}–${to} of ${this._totalElements}`;
+        this._prevBtn.disabled = this._page === 0;
+        this._nextBtn.disabled = this._page >= this._totalPages - 1;
     }
 
     _renderTable() {
@@ -268,13 +318,13 @@ export class CrudView {
             overlay.innerHTML = `
                 <div class="modal-content glass-panel" style="max-width:400px;">
                     <div class="modal-header">
-                        <h2>Silinməni təsdiqləyin</h2>
+                        <h2>Confirm Delete</h2>
                     </div>
                     <div style="padding: var(--space-md);">
-                        <p style="margin-bottom: var(--space-md);">Bu qeydi silmək istədiyinizə əminsiniz?</p>
+                        <p style="margin-bottom: var(--space-md);">Are you sure you want to delete this record?</p>
                         <div style="display:flex; gap: var(--space-sm); justify-content:flex-end;">
-                            <button type="button" class="btn-secondary" data-act="cancel">Ləğv et</button>
-                            <button type="button" class="btn-primary" data-act="confirm" style="background:#d33;">Sil</button>
+                            <button type="button" class="btn-secondary" data-act="cancel">Cancel</button>
+                            <button type="button" class="btn-primary" data-act="confirm" style="background:#d33;">Delete</button>
                         </div>
                     </div>
                 </div>
@@ -289,14 +339,17 @@ export class CrudView {
     }
 
     unmount() {
-        if (this._addBtn) this._addBtn.removeEventListener('click', this._onAdd);
+        if (this._addBtn)   this._addBtn.removeEventListener('click', this._onAdd);
         if (this._closeBtn) this._closeBtn.removeEventListener('click', this._onClose);
-        if (this._form) this._form.removeEventListener('submit', this._onSubmit);
+        if (this._form)     this._form.removeEventListener('submit', this._onSubmit);
         if (this._tableBody) this._tableBody.removeEventListener('click', this._onTableClick);
+        if (this._prevBtn)  this._prevBtn.removeEventListener('click', this._onPrev);
+        if (this._nextBtn)  this._nextBtn.removeEventListener('click', this._onNext);
         this._addBtn = null;
         this._modal = null;
         this._form = null;
         this._tableBody = null;
+        this._pagination = null;
         this._data = [];
     }
 }

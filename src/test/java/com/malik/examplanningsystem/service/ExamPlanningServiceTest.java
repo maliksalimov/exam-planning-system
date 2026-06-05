@@ -1,13 +1,17 @@
 package com.malik.examplanningsystem.service;
 
+import com.malik.examplanningsystem.dto.AutoScheduleRequest;
 import com.malik.examplanningsystem.entity.Classroom;
+import com.malik.examplanningsystem.entity.Course;
 import com.malik.examplanningsystem.entity.Exam;
 import com.malik.examplanningsystem.entity.ExamAssignment;
 import com.malik.examplanningsystem.entity.Instructor;
+import com.malik.examplanningsystem.entity.InvigilatorAssignment;
 import com.malik.examplanningsystem.entity.Student;
 import com.malik.examplanningsystem.exception.DuplicateResourceException;
 import com.malik.examplanningsystem.exception.InsufficientCapacityException;
 import com.malik.examplanningsystem.repository.ClassroomRepository;
+import com.malik.examplanningsystem.repository.CourseRepository;
 import com.malik.examplanningsystem.repository.ExamAssignmentRepository;
 import com.malik.examplanningsystem.repository.ExamRepository;
 import com.malik.examplanningsystem.repository.InstructorRepository;
@@ -25,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,6 +48,7 @@ class ExamPlanningServiceTest {
     @Mock private ExamAssignmentRepository examAssignmentRepository;
     @Mock private InvigilatorAssignmentRepository invigilatorAssignmentRepository;
     @Mock private InstructorRepository instructorRepository;
+    @Mock private CourseRepository courseRepository;
 
     @InjectMocks
     private ExamPlanningService planningService;
@@ -69,7 +75,6 @@ class ExamPlanningServiceTest {
         classroom.setIsAvailable(true);
     }
 
-    // ── TEST 2: Uğurlu senaryo ────────────────────────────────────────────────
 
     @Test
     void planExam_successfulAssignment_savesAndReturnsCorrectSummary() {
@@ -94,7 +99,7 @@ class ExamPlanningServiceTest {
         verify(instructorRepository).saveAll(any());
     }
 
-    // ── TEST 5: dryRun=true heç nə saxlamır ──────────────────────────────────
+    // ── planExam — dry run does not write to DB ───────────────────────────────
 
     @Test
     void planExam_dryRun_doesNotWriteToDatabase() {
@@ -115,7 +120,6 @@ class ExamPlanningServiceTest {
         verify(instructorRepository, never()).saveAll(any());
     }
 
-    // ── TEST 3: Dublikat öğrenci → DuplicateResourceException ────────────────
 
     @Test
     void planExam_throwsDuplicateException_whenStudentAlreadyAssigned() {
@@ -135,7 +139,7 @@ class ExamPlanningServiceTest {
         verify(examAssignmentRepository, never()).saveAll(any());
     }
 
-    // ── TEST 4a: Sınıf yoxdur → InsufficientCapacityException ────────────────
+    // ── planExam — no classrooms available throws capacity error ─────────────
 
     @Test
     void planExam_throwsCapacityException_whenNoClassroomsAvailable() {
@@ -156,7 +160,7 @@ class ExamPlanningServiceTest {
                 .hasMessageContaining("No available classrooms");
     }
 
-    // ── TEST 4b: Kapasite aşımı → InsufficientCapacityException ──────────────
+    // ── planExam — total capacity less than student count ────────────────────
 
     @Test
     void planExam_throwsCapacityException_whenTotalCapacityInsufficient() {
@@ -180,7 +184,7 @@ class ExamPlanningServiceTest {
                 .hasMessageContaining("insufficient");
     }
 
-    // ── TEST 6: Gözetmen çatışmazlığı → InsufficientCapacityException ─────────
+    // ── planExam — no invigilators available throws capacity error ───────────
 
     @Test
     void planExam_throwsCapacityException_whenNoInvigilatorsAvailable() {
@@ -197,7 +201,7 @@ class ExamPlanningServiceTest {
                 .hasMessageContaining("Not enough available instructors");
     }
 
-    // ── TEST 1: İnvigilator kuralı — 30 öğrenci → 1 gözetmen ────────────────
+    // ── planExam — invigilator rule: 1–50 students → 1 invigilator ──────────
 
     @Test
     void planExam_dryRun_30Students_assigns1Invigilator() {
@@ -213,7 +217,7 @@ class ExamPlanningServiceTest {
         assertThat(result.get("invigilatorsAssigned")).isEqualTo(1);
     }
 
-    // ── TEST 1: İnvigilator kuralı — 75 öğrenci → 2 gözetmen ────────────────
+    // ── planExam — invigilator rule: 51–100 students → 2 invigilators ────────
 
     @Test
     void planExam_dryRun_75Students_assigns2Invigilators() {
@@ -230,7 +234,7 @@ class ExamPlanningServiceTest {
         assertThat(result.get("invigilatorsAssigned")).isEqualTo(2);
     }
 
-    // ── TEST 1: İnvigilator kuralı — 120 öğrenci → 3 gözetmen ───────────────
+    // ── planExam — invigilator rule: 101+ students → 3 invigilators ──────────
 
     @Test
     void planExam_dryRun_120Students_assigns3Invigilators() {
@@ -248,9 +252,188 @@ class ExamPlanningServiceTest {
         assertThat(result.get("invigilatorsAssigned")).isEqualTo(3);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helper methods
-    // ─────────────────────────────────────────────────────────────────────────
+    // ── detectConflicts — no assignments returns empty list ───────────────────
+
+    @Test
+    void detectConflicts_noAssignments_returnsEmptyList() {
+        when(examService.getExamEntityById(1L)).thenReturn(exam);
+        when(examAssignmentRepository.findByExam(exam)).thenReturn(Collections.emptyList());
+
+        List<Map<String, Object>> result = planningService.detectConflicts(1L);
+
+        assertThat(result).isEmpty();
+    }
+
+    // ── detectConflicts — student double-booked at same timeslot ─────────────
+
+    @Test
+    void detectConflicts_studentDoubleBooked_returnsConflict() {
+        Student student = buildStudent(1L, "STU-001");
+
+        ExamAssignment myAssignment = new ExamAssignment();
+        myAssignment.setStudent(student);
+        myAssignment.setExam(exam);
+        myAssignment.setClassroom(classroom);
+
+        Exam otherExam = new Exam();
+        otherExam.setExamId(2L);
+        otherExam.setExamName("Other Exam");
+        otherExam.setExamDate(exam.getExamDate());
+        otherExam.setExamTime(exam.getExamTime());
+
+        ExamAssignment conflictingAssignment = new ExamAssignment();
+        conflictingAssignment.setStudent(student);
+        conflictingAssignment.setExam(otherExam);
+        conflictingAssignment.setClassroom(classroom);
+
+        when(examService.getExamEntityById(1L)).thenReturn(exam);
+        when(examAssignmentRepository.findByExam(exam)).thenReturn(List.of(myAssignment));
+        // First call: student double-booked check — return the conflicting assignment.
+        // Second call: classroom double-booked check (empty student list from findAll) — return empty.
+        when(examAssignmentRepository.findByStudentInAndExam_ExamDateAndExam_ExamTime(any(), any(), any()))
+                .thenReturn(List.of(conflictingAssignment))
+                .thenReturn(Collections.emptyList());
+        when(invigilatorAssignmentRepository.findByExam(exam)).thenReturn(Collections.emptyList());
+        when(examAssignmentRepository.findAll()).thenReturn(Collections.emptyList());
+
+        List<Map<String, Object>> result = planningService.detectConflicts(1L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).get("type")).isEqualTo("STUDENT_DOUBLE_BOOKED");
+        assertThat(result.get(0).get("studentNo")).isEqualTo("STU-001");
+    }
+
+    // ── detectConflicts — no conflicts returns empty list ─────────────────────
+
+    @Test
+    void detectConflicts_noConflicts_returnsEmptyList() {
+        Student student = buildStudent(1L, "STU-001");
+
+        ExamAssignment assignment = new ExamAssignment();
+        assignment.setStudent(student);
+        assignment.setExam(exam);
+        assignment.setClassroom(classroom);
+
+        when(examService.getExamEntityById(1L)).thenReturn(exam);
+        when(examAssignmentRepository.findByExam(exam)).thenReturn(List.of(assignment));
+        when(examAssignmentRepository.findByStudentInAndExam_ExamDateAndExam_ExamTime(any(), any(), any()))
+                .thenReturn(Collections.emptyList());
+        when(invigilatorAssignmentRepository.findByExam(exam)).thenReturn(Collections.emptyList());
+        when(examAssignmentRepository.findAll()).thenReturn(Collections.emptyList());
+
+        List<Map<String, Object>> result = planningService.detectConflicts(1L);
+
+        assertThat(result).isEmpty();
+    }
+
+    // ── autoScheduleExam — finds first viable slot and plans exam ─────────────
+
+    @Test
+    void autoScheduleExam_findsFirstAvailableSlot_createsAndPlansExam() {
+        Course course = new Course();
+        course.setCourseId(10L);
+        course.setCourseName("Mathematics");
+
+        Student s1 = buildStudent(1L, "STU-001");
+        Instructor inst = buildInstructor(1L, "Dr. A", 0);
+
+        Exam savedExam = new Exam();
+        savedExam.setExamId(99L);
+        savedExam.setExamName("Mathematics Exam");
+        savedExam.setExamDate(LocalDate.now().plusDays(1));
+        savedExam.setExamTime(LocalTime.of(9, 0));
+        savedExam.setDuration(90);
+        savedExam.setIsCommonExam(false);
+        savedExam.setCourse(course);
+
+        when(courseRepository.findById(10L)).thenReturn(Optional.of(course));
+        when(studentService.getStudentEntityById(1L)).thenReturn(s1);
+        // No student conflicts at the first slot
+        when(examAssignmentRepository.findByStudentInAndExam_ExamDateAndExam_ExamTime(any(), any(), any()))
+                .thenReturn(Collections.emptyList());
+        when(examRepository.findByExamDateAndExamTime(any(), any())).thenReturn(Collections.emptyList());
+        when(classroomRepository.findByIsAvailable(true)).thenReturn(List.of(classroom));
+        when(invigilatorAssignmentRepository.findByExam_ExamDateAndExam_ExamTime(any(), any()))
+                .thenReturn(Collections.emptyList());
+        when(instructorRepository.findAllByOrderByDutyCountAsc()).thenReturn(List.of(inst));
+        when(examRepository.save(any())).thenReturn(savedExam);
+        // planExam calls:
+        when(examService.getExamEntityById(99L)).thenReturn(savedExam);
+        when(examAssignmentRepository.findByExamAndStudentIn(any(), any())).thenReturn(Collections.emptyList());
+        when(invigilatorAssignmentRepository.findByExam(any())).thenReturn(Collections.emptyList());
+
+        AutoScheduleRequest request = new AutoScheduleRequest();
+        request.setCourseId(10L);
+        request.setStudentIds(List.of(1L));
+        request.setPreferredDate(LocalDate.now().plusDays(1));
+
+        Map<String, Object> result = planningService.autoScheduleExam(request);
+
+        assertThat(result).containsKey("examId");
+        assertThat(result.get("autoScheduled")).isEqualTo(true);
+        verify(examRepository).save(any());
+    }
+
+    // ── autoScheduleExam — no viable slot in 30 days throws exception ─────────
+
+    @Test
+    void autoScheduleExam_noSlotIn30Days_throwsInsufficientCapacityException() {
+        Course course = new Course();
+        course.setCourseId(10L);
+        course.setCourseName("Mathematics");
+
+        Student s1 = buildStudent(1L, "STU-001");
+
+        when(courseRepository.findById(10L)).thenReturn(Optional.of(course));
+        when(studentService.getStudentEntityById(1L)).thenReturn(s1);
+        // Every slot has a student conflict
+        ExamAssignment blockingAssignment = new ExamAssignment();
+        blockingAssignment.setStudent(s1);
+        blockingAssignment.setExam(exam);
+        blockingAssignment.setClassroom(classroom);
+        when(examAssignmentRepository.findByStudentInAndExam_ExamDateAndExam_ExamTime(any(), any(), any()))
+                .thenReturn(List.of(blockingAssignment));
+
+        AutoScheduleRequest request = new AutoScheduleRequest();
+        request.setCourseId(10L);
+        request.setStudentIds(List.of(1L));
+        request.setPreferredDate(LocalDate.now().plusDays(1));
+
+        assertThatThrownBy(() -> planningService.autoScheduleExam(request))
+                .isInstanceOf(InsufficientCapacityException.class)
+                .hasMessageContaining("No available slot found");
+    }
+
+    // ── resetExamPlan — clears assignments and decrements invigilator duties ──
+
+    @Test
+    void resetExamPlan_clearsAllAssignmentsAndDecrementsInvigilatorDuties() {
+        Student s1 = buildStudent(1L, "STU-001");
+        ExamAssignment ea = new ExamAssignment();
+        ea.setStudent(s1);
+        ea.setExam(exam);
+        ea.setClassroom(classroom);
+
+        Instructor inst = buildInstructor(1L, "Dr. A", 3);
+        InvigilatorAssignment ia = new InvigilatorAssignment();
+        ia.setInstructor(inst);
+        ia.setExam(exam);
+        ia.setClassroom(classroom);
+
+        when(examService.getExamEntityById(1L)).thenReturn(exam);
+        when(examAssignmentRepository.findByExam(exam)).thenReturn(List.of(ea));
+        when(invigilatorAssignmentRepository.findByExam(exam)).thenReturn(List.of(ia));
+
+        Map<String, Object> result = planningService.resetExamPlan(1L);
+
+        assertThat(result.get("studentAssignmentsCleared")).isEqualTo(1);
+        assertThat(result.get("invigilatorAssignmentsCleared")).isEqualTo(1);
+        assertThat(inst.getDutyCount()).isEqualTo(2);
+        verify(examAssignmentRepository).deleteAll(any());
+        verify(invigilatorAssignmentRepository).deleteAll(any());
+    }
+
+    // ─── helpers ──────────────────────────────────────────────────────────────
 
     private Student buildStudent(Long id, String studentNo) {
         Student s = new Student();
@@ -276,7 +459,6 @@ class ExamPlanningServiceTest {
         return result;
     }
 
-    /** Stubs common "no conflict" repository calls (used by most happy-path tests). */
     private void stubNoConflicts() {
         when(examAssignmentRepository.findByExamAndStudentIn(any(), any()))
                 .thenReturn(Collections.emptyList());
@@ -290,7 +472,6 @@ class ExamPlanningServiceTest {
                 .thenReturn(Collections.emptyList());
     }
 
-    /** Stubs exam + all students + classrooms + instructors for bulk student tests. */
     private void stubForBulkStudents(List<Student> students, List<Instructor> instructors) {
         when(examService.getExamEntityById(1L)).thenReturn(exam);
         for (Student s : students) {

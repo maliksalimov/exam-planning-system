@@ -2,6 +2,7 @@ package com.malik.examplanningsystem.controller;
 
 import com.malik.examplanningsystem.dto.InstructorCreateRequest;
 import com.malik.examplanningsystem.dto.InstructorResponse;
+import com.malik.examplanningsystem.dto.PageResponse;
 import com.malik.examplanningsystem.service.InstructorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -12,6 +13,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,14 +46,18 @@ public class InstructorController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all instructors")
+    @Operation(summary = "Get all instructors (paginated)",
+            description = "Use ?page=0&size=50 to paginate.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "List returned",
-                    content = @Content(schema = @Schema(implementation = InstructorResponse.class))),
+            @ApiResponse(responseCode = "200", description = "Page returned"),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content)
     })
-    public ResponseEntity<List<InstructorResponse>> getAllInstructors(){
-        return ResponseEntity.ok(instructorService.getAllInstructors());
+    public ResponseEntity<PageResponse<InstructorResponse>> getAllInstructors(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        size = Math.min(size, 500);
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("instructorId").ascending());
+        return ResponseEntity.ok(PageResponse.of(instructorService.getAllInstructors(pageable)));
     }
 
     @GetMapping("/{id}")

@@ -11,6 +11,9 @@ import com.malik.examplanningsystem.repository.InstructorRepository;
 import com.malik.examplanningsystem.repository.InvigilatorAssignmentRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -61,6 +64,15 @@ public class InstructorService {
                 .stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public Page<InstructorResponse> getAllInstructors(Pageable pageable) {
+        Page<Instructor> page = instructorRepository.findAll(pageable);
+        List<InstructorResponse> content = page.getContent().stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+        return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
     public InstructorResponse getInstructorById(Long id){

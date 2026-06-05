@@ -103,7 +103,7 @@ export const PdfGenerator = {
                     ${room.invigilatorNames.map((name, idx) => `
                         <tr style="border-bottom: 1px solid #e5e7eb;">
                             <td style="padding: 10px;">${idx + 1}</td>
-                            <td style="padding: 10px;">${name.replace(/\\s*\\(görev:\\s*\\d+\\)/, '')}</td>
+                            <td style="padding: 10px;">${name.replace(/\\s*\\(duties:\\s*\\d+\\)/, '')}</td>
                             <td style="padding: 10px; text-align: center;">__________________</td>
                             <td style="padding: 10px; text-align: center;">__________________</td>
                         </tr>

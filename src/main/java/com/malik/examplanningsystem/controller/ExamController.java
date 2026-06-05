@@ -3,6 +3,7 @@ package com.malik.examplanningsystem.controller;
 import com.malik.examplanningsystem.dto.ExamAssignmentResponse;
 import com.malik.examplanningsystem.dto.ExamCreateRequest;
 import com.malik.examplanningsystem.dto.ExamResponse;
+import com.malik.examplanningsystem.dto.PageResponse;
 import com.malik.examplanningsystem.dto.StudentResponse;
 import com.malik.examplanningsystem.service.ExamAssignmentService;
 import com.malik.examplanningsystem.service.ExamService;
@@ -16,6 +17,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,14 +52,18 @@ public class ExamController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all exams")
+    @Operation(summary = "Get all exams (paginated)",
+            description = "Use ?page=0&size=50 to paginate.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "List returned",
-                    content = @Content(schema = @Schema(implementation = ExamResponse.class))),
+            @ApiResponse(responseCode = "200", description = "Page returned"),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content)
     })
-    public ResponseEntity<List<ExamResponse>> getAllExams() {
-        return ResponseEntity.ok(examService.getAllExams());
+    public ResponseEntity<PageResponse<ExamResponse>> getAllExams(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        size = Math.min(size, 500);
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("examDate").ascending().and(Sort.by("examTime").ascending()));
+        return ResponseEntity.ok(PageResponse.of(examService.getAllExams(pageable)));
     }
 
     @GetMapping("/{id}")

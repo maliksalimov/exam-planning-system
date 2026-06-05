@@ -15,6 +15,10 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
@@ -68,6 +72,21 @@ public class ExamService {
                     return r;
                 })
                 .collect(Collectors.toList());
+    }
+
+    public Page<ExamResponse> getAllExams(Pageable pageable) {
+        Map<Long, Long> countByExamId = examAssignmentRepository.countStudentsPerExam()
+                .stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+        Page<Exam> page = examRepository.findAllWithDetails(pageable);
+        List<ExamResponse> content = page.getContent().stream()
+                .map(exam -> {
+                    ExamResponse r = convertToResponse(exam);
+                    r.setStudentCount(countByExamId.getOrDefault(exam.getExamId(), 0L).intValue());
+                    return r;
+                })
+                .collect(Collectors.toList());
+        return new PageImpl<>(content, pageable, page.getTotalElements());
     }
 
     public ExamResponse getExamById(Long id) {

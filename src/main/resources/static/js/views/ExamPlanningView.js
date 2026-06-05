@@ -87,8 +87,8 @@ export default class ExamPlanningView {
 
         try {
             const [exams, departments] = await Promise.all([
-                Api.request('admin/exams'),
-                Api.request('admin/departments')
+                Api.getAll('admin/exams'),
+                Api.getAll('admin/departments')
             ]);
 
             if (!this._examSelect) return;
@@ -381,11 +381,11 @@ export default class ExamPlanningView {
                 (this._currentData.classrooms || []).forEach(room => {
                     (room.invigilatorNames || []).forEach(n => {
                         duties.push({
-                            instructorName: n.replace(/\s*\(görev:\s*\d+\)/, ''),
+                            instructorName: n.replace(/\s*\(duties:\s*\d+\)/, ''),
                             examName: this._currentData.examName,
                             examTime: this._currentData.examTime,
                             classroom: room.classroom,
-                            dutyCount: (n.match(/görev: (\d+)/) || [])[1] || ''
+                            dutyCount: (n.match(/duties: (\d+)/) || [])[1] || ''
                         });
                     });
                 });

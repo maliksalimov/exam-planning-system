@@ -1,5 +1,6 @@
 package com.malik.examplanningsystem.controller;
 
+import com.malik.examplanningsystem.dto.AutoScheduleRequest;
 import com.malik.examplanningsystem.service.ExamPlanningService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -7,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -51,7 +53,30 @@ public class ExamPlanningController {
     }
 
     @GetMapping("/conflicts")
+    @Operation(summary = "Detect all conflicts across all exams")
     public ResponseEntity<List<Map<String, Object>>> getAllConflicts() {
         return ResponseEntity.ok(examPlanningService.detectAllConflicts());
+    }
+
+    @GetMapping("/conflicts/{examId}")
+    @Operation(summary = "Detect conflicts for a specific exam",
+            description = "Returns student double-bookings, instructor double-bookings, and classroom double-bookings scoped to the given exam.")
+    public ResponseEntity<List<Map<String, Object>>> getConflictsForExam(@PathVariable Long examId) {
+        return ResponseEntity.ok(examPlanningService.detectConflicts(examId));
+    }
+
+    @PostMapping("/auto-schedule")
+    @Operation(summary = "Auto-schedule an exam",
+            description = "Finds the first available date+time slot starting from preferredDate (or tomorrow if not specified) " +
+                    "where all students, classrooms, and invigilators are free, then creates the exam and runs the planning algorithm. " +
+                    "Tries up to 30 days across 4 daily time slots (09:00, 11:00, 13:00, 15:00).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Exam created and planned successfully", content = @Content),
+            @ApiResponse(responseCode = "400", description = "No viable slot found in 30 days", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Course or student not found", content = @Content)
+    })
+    public ResponseEntity<Map<String, Object>> autoSchedule(
+            @Valid @RequestBody AutoScheduleRequest request) {
+        return ResponseEntity.ok(examPlanningService.autoScheduleExam(request));
     }
 }

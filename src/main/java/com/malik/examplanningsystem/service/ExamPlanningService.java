@@ -1,6 +1,8 @@
 package com.malik.examplanningsystem.service;
 
+import com.malik.examplanningsystem.dto.AutoScheduleRequest;
 import com.malik.examplanningsystem.entity.Classroom;
+import com.malik.examplanningsystem.entity.Course;
 import com.malik.examplanningsystem.entity.Exam;
 import com.malik.examplanningsystem.entity.ExamAssignment;
 import com.malik.examplanningsystem.entity.InvigilatorAssignment;
@@ -8,7 +10,9 @@ import com.malik.examplanningsystem.entity.Instructor;
 import com.malik.examplanningsystem.entity.Student;
 import com.malik.examplanningsystem.exception.DuplicateResourceException;
 import com.malik.examplanningsystem.exception.InsufficientCapacityException;
+import com.malik.examplanningsystem.exception.ResourceNotFoundException;
 import com.malik.examplanningsystem.repository.ClassroomRepository;
+import com.malik.examplanningsystem.repository.CourseRepository;
 import com.malik.examplanningsystem.repository.ExamAssignmentRepository;
 import com.malik.examplanningsystem.repository.ExamRepository;
 import com.malik.examplanningsystem.repository.InstructorRepository;
@@ -18,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -37,6 +42,11 @@ public class ExamPlanningService {
     private final ExamAssignmentRepository examAssignmentRepository;
     private final InvigilatorAssignmentRepository invigilatorAssignmentRepository;
     private final InstructorRepository instructorRepository;
+    private final CourseRepository courseRepository;
+
+    private static final List<LocalTime> STANDARD_TIME_SLOTS = List.of(
+            LocalTime.of(9, 0), LocalTime.of(11, 0), LocalTime.of(13, 0), LocalTime.of(15, 0)
+    );
 
     @Transactional
     public Map<String, Object> planExam(Long examId, List<Long> studentIds) {
@@ -191,7 +201,7 @@ public class ExamPlanningService {
             roomSummary.put("invigilatorRule", invigilatorRuleLabel(studentsInRoom));
             roomSummary.put("studentNumbers", assignedStudentNos);
             roomSummary.put("invigilatorNames", roomInvigilators.stream()
-                    .map(inst -> inst.getFullName() + " (görev: " + inst.getDutyCount() + ")")
+                    .map(inst -> inst.getFullName() + " (duties: " + inst.getDutyCount() + ")")
                     .collect(Collectors.toList()));
             classroomSummaries.add(roomSummary);
         }
@@ -329,22 +339,185 @@ public class ExamPlanningService {
         return conflicts;
     }
 
-    public Map<String, Object> autoScheduleExam(Long courseId, List<Long> studentIds, LocalDate preferredDate) {
-        // TODO: Implement automatic exam scheduling
-        // - Find available time slots across multiple days starting from preferredDate
-        // - Check all potential classrooms and their availability
-        // - Avoid conflicts for all provided students and available instructors
-        // - Select optimal classroom combination minimising rooms used
-        throw new UnsupportedOperationException("Auto-scheduling not yet implemented");
+    @Transactional
+    public Map<String, Object> autoScheduleExam(AutoScheduleRequest request) {
+        Course course = courseRepository.findById(request.getCourseId())
+                .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + request.getCourseId()));
+
+        List<Student> students = request.getStudentIds().stream()
+                .map(studentService::getStudentEntityById)
+                .collect(Collectors.toList());
+
+        if (students.isEmpty()) {
+            throw new IllegalArgumentException("At least one student is required");
+        }
+
+        LocalDate startDate = request.getPreferredDate() != null
+                ? request.getPreferredDate() : LocalDate.now().plusDays(1);
+
+        for (int dayOffset = 0; dayOffset < 30; dayOffset++) {
+            LocalDate candidate = startDate.plusDays(dayOffset);
+
+            for (LocalTime timeSlot : STANDARD_TIME_SLOTS) {
+                if (!isSlotViable(students, candidate, timeSlot)) continue;
+
+                List<Classroom> classrooms = availableClassroomsAt(candidate, timeSlot);
+                int totalCapacity = classrooms.stream().mapToInt(Classroom::getCapacity).sum();
+                if (totalCapacity < students.size()) continue;
+
+                List<Instructor> instructors = availableInstructorsAt(candidate, timeSlot, Set.of());
+                if (!hasEnoughInvigilators(students.size(), classrooms, instructors)) continue;
+
+                // Slot is valid — create the exam and plan it
+                Exam exam = new Exam();
+                exam.setCourse(course);
+                exam.setExamName(request.getExamName() != null
+                        ? request.getExamName() : course.getCourseName() + " Exam");
+                exam.setExamType(request.getExamType() != null ? request.getExamType() : "MIDTERM");
+                exam.setExamDate(candidate);
+                exam.setExamTime(timeSlot);
+                exam.setDuration(request.getDuration() != null ? request.getDuration() : 90);
+                exam.setIsCommonExam(false);
+                exam = examRepository.save(exam);
+
+                Map<String, Object> result = planExam(exam.getExamId(), request.getStudentIds(), false);
+                result.put("autoScheduled", true);
+                return result;
+            }
+        }
+
+        throw new InsufficientCapacityException(
+                "No available slot found in the next 30 days from " + startDate
+                + ". Add more classrooms or instructors, or reduce student count.");
     }
 
     public List<Map<String, Object>> detectConflicts(Long examId) {
-        // TODO: Implement conflict detection report
-        // - Check for students double-booked at the same date and time
-        // - Check for instructors invigilating multiple exams simultaneously
-        // - Check for classrooms hosting multiple exams simultaneously
-        // - Return structured list of all conflicts with full entity details
-        throw new UnsupportedOperationException("Conflict detection not yet implemented");
+        Exam exam = examService.getExamEntityById(examId);
+        List<Map<String, Object>> conflicts = new ArrayList<>();
+
+        List<ExamAssignment> assignments = examAssignmentRepository.findByExam(exam);
+        if (assignments.isEmpty()) return conflicts;
+
+        // 1) Students in this exam who also have another exam at the same slot
+        List<Student> students = assignments.stream()
+                .map(ExamAssignment::getStudent).collect(Collectors.toList());
+
+        examAssignmentRepository
+                .findByStudentInAndExam_ExamDateAndExam_ExamTime(students, exam.getExamDate(), exam.getExamTime())
+                .stream()
+                .filter(a -> !a.getExam().getExamId().equals(examId))
+                .forEach(a -> {
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("type", "STUDENT_DOUBLE_BOOKED");
+                    c.put("studentNo", a.getStudent().getStudentNo());
+                    c.put("studentName", a.getStudent().getFullName());
+                    c.put("date", exam.getExamDate());
+                    c.put("time", exam.getExamTime());
+                    c.put("conflictingExam", a.getExam().getExamName());
+                    conflicts.add(c);
+                });
+
+        // 2) Invigilators in this exam who are also assigned elsewhere at the same slot
+        List<InvigilatorAssignment> myInvig = invigilatorAssignmentRepository.findByExam(exam);
+        if (!myInvig.isEmpty()) {
+            Set<Long> myInstructorIds = myInvig.stream()
+                    .map(a -> a.getInstructor().getInstructorId()).collect(Collectors.toSet());
+
+            invigilatorAssignmentRepository
+                    .findByExam_ExamDateAndExam_ExamTime(exam.getExamDate(), exam.getExamTime())
+                    .stream()
+                    .filter(a -> !a.getExam().getExamId().equals(examId))
+                    .filter(a -> myInstructorIds.contains(a.getInstructor().getInstructorId()))
+                    .forEach(a -> {
+                        Map<String, Object> c = new LinkedHashMap<>();
+                        c.put("type", "INSTRUCTOR_DOUBLE_BOOKED");
+                        c.put("staffNo", a.getInstructor().getStaffNo());
+                        c.put("instructorName", a.getInstructor().getFullName());
+                        c.put("date", exam.getExamDate());
+                        c.put("time", exam.getExamTime());
+                        c.put("conflictingExam", a.getExam().getExamName());
+                        conflicts.add(c);
+                    });
+        }
+
+        // 3) Classrooms used by this exam that are also used by another exam at the same slot
+        Set<Long> myClassroomIds = assignments.stream()
+                .map(a -> a.getClassroom().getClassroomId()).collect(Collectors.toSet());
+
+        examAssignmentRepository
+                .findByStudentInAndExam_ExamDateAndExam_ExamTime(
+                        examAssignmentRepository.findAll().stream()
+                                .filter(a -> !a.getExam().getExamId().equals(examId))
+                                .filter(a -> myClassroomIds.contains(a.getClassroom().getClassroomId()))
+                                .filter(a -> a.getExam().getExamDate().equals(exam.getExamDate())
+                                        && a.getExam().getExamTime().equals(exam.getExamTime()))
+                                .map(ExamAssignment::getStudent)
+                                .distinct()
+                                .collect(Collectors.toList()),
+                        exam.getExamDate(), exam.getExamTime())
+                .stream()
+                .filter(a -> !a.getExam().getExamId().equals(examId))
+                .filter(a -> myClassroomIds.contains(a.getClassroom().getClassroomId()))
+                .map(ExamAssignment::getClassroom)
+                .distinct()
+                .forEach(classroom -> {
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    c.put("type", "CLASSROOM_DOUBLE_BOOKED");
+                    c.put("classroom", classroom.getCampus() + " - "
+                            + classroom.getBuilding() + " - " + classroom.getRoomName());
+                    c.put("date", exam.getExamDate());
+                    c.put("time", exam.getExamTime());
+                    conflicts.add(c);
+                });
+
+        return conflicts;
+    }
+
+    // ── private helpers for auto-schedule ──────────────────────────────────
+
+    private boolean isSlotViable(List<Student> students, LocalDate date, LocalTime time) {
+        return examAssignmentRepository
+                .findByStudentInAndExam_ExamDateAndExam_ExamTime(students, date, time)
+                .isEmpty();
+    }
+
+    private List<Classroom> availableClassroomsAt(LocalDate date, LocalTime time) {
+        Set<Long> occupied = examRepository.findByExamDateAndExamTime(date, time)
+                .stream()
+                .filter(e -> e.getClassroom() != null)
+                .map(e -> e.getClassroom().getClassroomId())
+                .collect(Collectors.toSet());
+
+        return classroomRepository.findByIsAvailable(true)
+                .stream()
+                .filter(c -> !occupied.contains(c.getClassroomId()))
+                .sorted(Comparator.comparingInt(Classroom::getCapacity).reversed())
+                .collect(Collectors.toList());
+    }
+
+    private List<Instructor> availableInstructorsAt(LocalDate date, LocalTime time, Set<Long> alreadyInExam) {
+        Set<Long> busy = invigilatorAssignmentRepository
+                .findByExam_ExamDateAndExam_ExamTime(date, time)
+                .stream().map(a -> a.getInstructor().getInstructorId())
+                .collect(Collectors.toSet());
+
+        return instructorRepository.findAllByOrderByDutyCountAsc().stream()
+                .filter(Instructor::getIsAvailableForInvigilation)
+                .filter(i -> !alreadyInExam.contains(i.getInstructorId()))
+                .filter(i -> !busy.contains(i.getInstructorId()))
+                .collect(Collectors.toList());
+    }
+
+    private boolean hasEnoughInvigilators(int studentCount, List<Classroom> classrooms, List<Instructor> instructors) {
+        int remaining = studentCount;
+        int needed = 0;
+        for (Classroom c : classrooms) {
+            if (remaining <= 0) break;
+            int inRoom = Math.min(remaining, c.getCapacity());
+            needed += calculateInvigilatorsNeeded(inRoom);
+            remaining -= inRoom;
+        }
+        return instructors.size() >= needed;
     }
 
     @Transactional

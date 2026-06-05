@@ -54,7 +54,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrity(org.springframework.dao.DataIntegrityViolationException ex) {
-        String msg = "Bu qeyd silinə bilməz: başqa cədvəllərdə bu qeydə istinad var. Əvvəlcə əlaqəli qeydləri silin və ya 'Force Delete' istifadə edin.";
+        String msg = "This record cannot be deleted because other records reference it. Remove the related records first.";
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
                 msg,

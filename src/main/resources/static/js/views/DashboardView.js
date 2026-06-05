@@ -64,24 +64,29 @@ export default class DashboardView {
 
     async mount() {
         try {
+            const toCount = async (endpoint) => {
+                const r = await Api.request(`${endpoint}?size=1`);
+                return r && r.totalElements != null ? r.totalElements : (Array.isArray(r) ? r.length : 0);
+            };
+
             const [students, exams, users, instructors, classrooms, faculties] = await Promise.all([
-                Api.request('admin/students'),
-                Api.request('admin/exams'),
-                Api.request('admin/users'),
-                Api.request('admin/instructors'),
-                Api.request('admin/classrooms'),
-                Api.request('admin/faculties')
+                toCount('admin/students'),
+                toCount('admin/exams'),
+                toCount('admin/users'),
+                toCount('admin/instructors'),
+                toCount('admin/classrooms'),
+                toCount('admin/faculties')
             ]);
 
             const statStudents = document.getElementById('stat-students');
             if (!statStudents) return;
 
-            statStudents.innerText = students.length;
-            document.getElementById('stat-exams').innerText = exams.length;
-            document.getElementById('stat-users').innerText = users.length;
-            document.getElementById('stat-instructors').innerText = instructors.length;
-            document.getElementById('stat-classrooms').innerText = classrooms.length;
-            document.getElementById('stat-faculties').innerText = faculties.length;
+            statStudents.innerText = students;
+            document.getElementById('stat-exams').innerText = exams;
+            document.getElementById('stat-users').innerText = users;
+            document.getElementById('stat-instructors').innerText = instructors;
+            document.getElementById('stat-classrooms').innerText = classrooms;
+            document.getElementById('stat-faculties').innerText = faculties;
 
             const tableBody = document.getElementById('dashboard-exam-table');
             if (!tableBody) return;

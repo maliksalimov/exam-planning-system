@@ -1,5 +1,6 @@
 package com.malik.examplanningsystem.controller;
 
+import com.malik.examplanningsystem.dto.PageResponse;
 import com.malik.examplanningsystem.dto.StudentCreateRequest;
 import com.malik.examplanningsystem.dto.StudentImportResult;
 import com.malik.examplanningsystem.dto.StudentResponse;
@@ -13,6 +14,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-
 import java.util.List;
 
 @RestController
@@ -48,14 +50,18 @@ public class StudentController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all students")
+    @Operation(summary = "Get all students (paginated)",
+            description = "Use ?page=0&size=50 to paginate. Returns a PageResponse with content + metadata.")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "List returned",
-                    content = @Content(schema = @Schema(implementation = StudentResponse.class))),
+            @ApiResponse(responseCode = "200", description = "Page returned"),
             @ApiResponse(responseCode = "401", description = "Unauthorized", content = @Content)
     })
-    public ResponseEntity<List<StudentResponse>> getAllStudents(){
-        return ResponseEntity.ok(studentService.getAllStudents());
+    public ResponseEntity<PageResponse<StudentResponse>> getAllStudents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        size = Math.min(size, 500);
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("studentId").ascending());
+        return ResponseEntity.ok(PageResponse.of(studentService.getAllStudents(pageable)));
     }
 
     @GetMapping("/{id}")

@@ -206,5 +206,13 @@ export const Api = {
             console.error('API Error:', err);
             throw err;
         }
+    },
+
+    // Fetch all records from a paginated endpoint, returning a plain array.
+    async getAll(endpoint) {
+        const res = await this.request(`${endpoint}?size=1000`);
+        if (res && Array.isArray(res.content)) return res.content;
+        if (Array.isArray(res)) return res;
+        return [];
     }
 };
