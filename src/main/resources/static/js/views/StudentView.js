@@ -105,7 +105,7 @@ export default class StudentView extends CrudView {
                     headers['Authorization'] = `Bearer ${Auth.getToken()}`;
                 }
 
-                const response = await fetch('http://localhost:8081/api/admin/students/import', {
+                const response = await fetch('/api/admin/students/import', {
                     method: 'POST',
                     headers,
                     body: formData

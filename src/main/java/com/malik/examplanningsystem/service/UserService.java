@@ -1,5 +1,6 @@
 package com.malik.examplanningsystem.service;
 
+import com.malik.examplanningsystem.dto.RegisterRequest;
 import com.malik.examplanningsystem.dto.UserCreateRequest;
 import com.malik.examplanningsystem.dto.UserResponse;
 import com.malik.examplanningsystem.entity.User;
@@ -23,6 +24,17 @@ public class UserService {
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+    }
+
+    public UserResponse registerUser(RegisterRequest request) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new DuplicateResourceException("Username '" + request.getUsername() + "' is already taken");
+        }
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(Role.STUDENT);
+        return mapToDto(userRepository.save(user));
     }
 
     public UserResponse createUserDto(UserCreateRequest request) {

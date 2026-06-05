@@ -1,21 +1,34 @@
 package com.malik.examplanningsystem.service;
 
+import com.malik.examplanningsystem.entity.BlacklistedToken;
+import com.malik.examplanningsystem.repository.BlacklistedTokenRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.time.LocalDateTime;
 
 @Service
+@RequiredArgsConstructor
 public class TokenBlacklistService {
 
-    private final Set<String> blacklist = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final BlacklistedTokenRepository blacklistedTokenRepository;
 
-    public void blacklist(String token) {
-        blacklist.add(token);
+    @Transactional
+    public void blacklist(String token, LocalDateTime expiresAt) {
+        if (!blacklistedTokenRepository.existsByToken(token)) {
+            blacklistedTokenRepository.save(new BlacklistedToken(token, expiresAt));
+        }
     }
 
     public boolean isBlacklisted(String token) {
-        return blacklist.contains(token);
+        return blacklistedTokenRepository.existsByToken(token);
+    }
+
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void purgeExpiredTokens() {
+        blacklistedTokenRepository.deleteAllByExpiresAtBefore(LocalDateTime.now());
     }
 }

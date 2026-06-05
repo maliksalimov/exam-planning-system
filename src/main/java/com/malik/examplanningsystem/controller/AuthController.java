@@ -3,7 +3,7 @@ package com.malik.examplanningsystem.controller;
 import com.malik.examplanningsystem.config.JwtService;
 import com.malik.examplanningsystem.dto.AuthResponse;
 import com.malik.examplanningsystem.dto.LoginRequest;
-import com.malik.examplanningsystem.dto.UserCreateRequest;
+import com.malik.examplanningsystem.dto.RegisterRequest;
 import com.malik.examplanningsystem.dto.UserResponse;
 import com.malik.examplanningsystem.service.TokenBlacklistService;
 import com.malik.examplanningsystem.service.UserDetailsServiceImpl;
@@ -27,6 +27,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -38,6 +41,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final UserService userService;
     private final TokenBlacklistService tokenBlacklistService;
+
 
     @PostMapping("/login")
     @Operation(summary = "Login with credentials", description = "Authenticates a user and returns a JWT token valid for 24 hours")
@@ -66,20 +70,25 @@ public class AuthController {
     public ResponseEntity<Void> logout(HttpServletRequest request) {
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            tokenBlacklistService.blacklist(authHeader.substring(7));
+            String jwt = authHeader.substring(7);
+            LocalDateTime expiresAt = jwtService.extractExpiration(jwt)
+                    .toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDateTime();
+            tokenBlacklistService.blacklist(jwt, expiresAt);
         }
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/register")
-    @Operation(summary = "Register a new user", description = "Creates a new user account and returns a UserResponse")
+    @Operation(summary = "Register a new user", description = "Creates a new STUDENT account. Role is always STUDENT — admin accounts are created through the admin panel.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "User registered successfully",
                     content = @Content(schema = @Schema(implementation = UserResponse.class))),
             @ApiResponse(responseCode = "400", description = "Validation failed", content = @Content),
             @ApiResponse(responseCode = "409", description = "Username already exists", content = @Content)
     })
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody UserCreateRequest request) {
-        return ResponseEntity.ok(userService.createUserDto(request));
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.ok(userService.registerUser(request));
     }
 }
