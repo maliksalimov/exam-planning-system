@@ -36,7 +36,7 @@ public class Student {
     private Department department;
 
     @OneToOne
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @JoinColumn(name = "user_id", nullable = true, unique = true)
     private User user;
 
     @Column(nullable = false, updatable = false)

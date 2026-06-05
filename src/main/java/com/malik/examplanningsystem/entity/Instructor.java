@@ -38,7 +38,7 @@ public class Instructor {
     private Integer dutyCount = 0;
 
     @OneToOne
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @JoinColumn(name = "user_id", nullable = true, unique = true)
     private User user;
 
     @Column(nullable = false, updatable = false)
