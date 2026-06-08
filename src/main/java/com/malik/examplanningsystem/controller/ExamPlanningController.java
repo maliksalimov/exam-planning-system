@@ -65,6 +65,18 @@ public class ExamPlanningController {
         return ResponseEntity.ok(examPlanningService.detectConflicts(examId));
     }
 
+    @PostMapping("/validate/{examId}")
+    @Operation(
+            summary = "Validate students before planning",
+            description = "Returns which students cannot be included (already assigned or scheduling conflict) " +
+                    "and which are eligible. Use this before executing a plan to let the user discard conflicts."
+    )
+    public ResponseEntity<Map<String, Object>> validateStudents(
+            @PathVariable Long examId,
+            @RequestBody List<Long> studentIds) {
+        return ResponseEntity.ok(examPlanningService.validateStudentsForPlan(examId, studentIds));
+    }
+
     @PostMapping("/auto-schedule")
     @Operation(summary = "Auto-schedule an exam",
             description = "Finds the first available date+time slot starting from preferredDate (or tomorrow if not specified) " +

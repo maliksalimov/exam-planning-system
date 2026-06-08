@@ -1,56 +1,61 @@
 # Exam Planning System
 
-![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.2-brightgreen?logo=springboot)
-![MySQL](https://img.shields.io/badge/MySQL-8.x-blue?logo=mysql)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![Java 21](https://img.shields.io/badge/Java-21-blue?logo=openjdk)
+![Spring Boot 3](https://img.shields.io/badge/Spring_Boot-3.4-6db33f?logo=springboot)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-A full-stack web application for automating university exam scheduling — student seating, invigilator assignment, conflict detection, and PDF report generation — all through a browser-based admin console.
-
-![Dashboard preview](docs/assets/dashboard-preview.png)
+A full-stack university exam planning and management system built with **Spring Boot 3** and a **Vanilla JS SPA** frontend. It lets academic administrators schedule exams, distribute students across classrooms, auto-assign invigilators, detect scheduling conflicts, bulk-import students, and generate printable PDF reports — all from a single browser-based admin console.
 
 ---
 
 ## Table of Contents
 
-- [Features](#features)
+- [Key Features](#key-features)
 - [Tech Stack](#tech-stack)
+- [Prerequisites](#prerequisites)
 - [Getting Started](#getting-started)
-- [Usage](#usage)
+- [Configuration](#configuration)
+- [Default Credentials](#default-credentials)
+- [Demo Data](#demo-data)
 - [API Documentation](#api-documentation)
+- [Docker](#docker)
 - [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [Maintainer](#maintainer)
+- [Contributing / Maintainer](#contributing--maintainer)
 
 ---
 
-## Features
+## Key Features
 
 ### Core Planning Engine
-- **Automated student seating** — distributes students across classrooms by capacity (largest room first), assigns sequential seat numbers
-- **Invigilator auto-assignment** — allocates instructors based on duty count (fewest first) with configurable ratio:
-  - 1–50 students → 1 invigilator per room
-  - 51–100 students → 2 invigilators per room
+- **Automated student seating** — distributes students across available classrooms by capacity (largest room first), assigns sequential seat numbers per room
+- **Invigilator auto-assignment** — allocates instructors based on duty count (fewest duties first) with a configurable ratio:
+  - ≤ 50 students → 1 invigilator per room
+  - ≤ 100 students → 2 invigilators per room
   - 101+ students → 3 invigilators per room
-- **Dry-run mode** — preview the full plan before saving to the database
+- **Dry-run / preview mode** — simulate the full seating plan without persisting anything
 - **Plan reset** — wipe all assignments for an exam and re-run from scratch
+- **Auto-scheduling** — finds the first conflict-free date/time slot (up to 30 days ahead, across 4 daily slots: 09:00, 11:00, 13:00, 15:00) for a given course and set of students, then creates and plans the exam in one step
+
+### Conflict Detection
+- **Student double-booking** — flags any student assigned to two exams at the same date and time
+- **Instructor double-booking** — flags any invigilator assigned to two rooms simultaneously
+- **Classroom overlap** — detects the same room used by two exams at the same time
 
 ### Administration
-- Full CRUD for all entities: faculties, departments, courses, classrooms, instructors, students, exams
-- **Bulk student import** via CSV or Excel (`.csv`, `.xls`, `.xlsx`) with duplicate detection and row-level error reporting
-- **Conflict detection** — identifies students or instructors double-booked at the same date and time
-- Role-based access control (ADMIN / USER)
+- Full CRUD for all entities: faculties, departments, courses, classrooms, instructors, students, exams, and users
+- **Bulk student import** via CSV or Excel (`.csv`, `.xls`, `.xlsx`) — columns: `studentNo`, `tcNo`, `fullName`, `facultyId`, `departmentId`; duplicate rows are skipped with per-row error reporting
+- Role-based access control (`ADMIN` / `USER`) with JWT token blacklisting on logout
 
 ### Self-Service Portals
-- **Student query** (no login required) — look up exam seat by student number
-- **Instructor duties** — instructors view their assigned invigilation schedule
+- **Student query** (no login required) — students look up their exam seats by student number or name
+- **Instructor duties** — authenticated instructors view their own invigilation schedule
 
 ### Reporting
-- PDF exports with embedded Times New Roman font (full Turkish character support):
-  - Classroom-based exam list
-  - Invigilator duty distribution sheet
+- Client-side **PDF exports** powered by jsPDF with embedded Times New Roman font (full Unicode / Turkish character support):
+  - Classroom-based seating list
+  - Invigilator duty assignment sheet
   - Invigilator workload report
-- All reports filtered by selected exam, not by date
 
 ---
 
@@ -58,24 +63,30 @@ A full-stack web application for automating university exam scheduling — stude
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Spring Boot 3.4.2, Java 21 |
-| Security | Spring Security + JWT (JJWT 0.11.5), token blacklist on logout |
-| Persistence | Spring Data JPA / Hibernate, MySQL, HikariCP |
-| Data import | Apache POI 5.2.3 (Excel), OpenCSV 5.7.1 |
-| API docs | SpringDoc OpenAPI 2.8.0 (Swagger UI) |
-| Frontend | Vanilla JS (ES6 modules), hash-based SPA routing, no framework |
-| PDF | jsPDF 2.5.1 + jsPDF-AutoTable 3.8.2 |
-| Build | Gradle 8 |
+| Backend framework | Spring Boot 3.4, Spring Security, Spring Data JPA |
+| Language | Java 21 |
+| Database | PostgreSQL 16 |
+| ORM / connection pool | Hibernate (JPA), HikariCP |
+| Authentication | JWT (jjwt 0.11.5) + BCrypt, stateless sessions |
+| Excel / CSV import | Apache POI 5.2.3, OpenCSV 5.7.1 |
+| API documentation | SpringDoc OpenAPI 2.8 (Swagger UI) |
+| Frontend | Vanilla JS ES Modules SPA — no framework, hash-based routing |
+| PDF generation | jsPDF 2.5 + jsPDF-AutoTable (client-side, embedded font) |
+| Build tool | Gradle 8 (wrapper included) |
+| Containerisation | Docker Compose (PostgreSQL service) |
+
+---
+
+## Prerequisites
+
+- **Java 21** JDK — confirm with `java -version`
+- **PostgreSQL** — a running instance (local install or the provided Docker Compose file)
+- **Gradle** — the included `./gradlew` wrapper is sufficient; no separate Gradle install required
+- No Node.js or npm required; the frontend uses plain ES modules served by Spring Boot
 
 ---
 
 ## Getting Started
-
-### Prerequisites
-
-- **Java 21+** — `java -version`
-- **MySQL 8+** — local instance or a cloud database
-- No Node.js or npm required; the frontend uses plain ES modules
 
 ### 1. Clone the repository
 
@@ -84,26 +95,45 @@ git clone https://github.com/maliksalimov/exam-planning-system.git
 cd exam-planning-system
 ```
 
-### 2. Configure the database
+### 2. Start PostgreSQL (Docker option)
 
-Edit `src/main/resources/application.properties`:
+If you do not have a local PostgreSQL instance, use the included Docker Compose file:
 
-```properties
-spring.datasource.url=jdbc:mysql://localhost:3306/exam_planning?useSSL=false&serverTimezone=UTC
-spring.datasource.username=your_db_user
-spring.datasource.password=your_db_password
+```bash
+docker-compose up -d
 ```
 
-Hibernate will create the schema automatically on first run (`ddl-auto=update`).
+This starts PostgreSQL 16 on **host port 5433** with the following defaults:
 
-Also update the JWT secret if deploying beyond localhost:
+| Setting | Value |
+|---------|-------|
+| Database | `exam_planning_system` |
+| Username | `exam_user` |
+| Password | `exam_password` |
 
-```properties
-jwt.secret=YourOwnSecretKeyMinimum32BytesLong
-jwt.expiration=86400000   # 24 hours in milliseconds
+### 3. Configure the application
+
+Copy the environment template and fill in your values:
+
+```bash
+cp .env.example src/main/resources/application-local.properties
 ```
 
-### 3. Build and run
+Edit `src/main/resources/application-local.properties`:
+
+```properties
+DB_URL=jdbc:postgresql://localhost:5433/exam_planning_system
+DB_USERNAME=exam_user
+DB_PASSWORD=exam_password
+
+# Generate a strong secret — minimum 32 characters:
+#   openssl rand -base64 48
+JWT_SECRET=replace-with-a-secure-random-string-at-least-32-chars
+```
+
+> `application-local.properties` is listed in `.gitignore` — never commit it.
+
+### 4. Build and run
 
 ```bash
 ./gradlew bootRun
@@ -111,78 +141,93 @@ jwt.expiration=86400000   # 24 hours in milliseconds
 
 The application starts on **http://localhost:8081**.
 
-To build a runnable JAR:
+To produce a standalone JAR:
 
 ```bash
 ./gradlew clean build
 java -jar build/libs/exam-planning-system-*.jar
 ```
 
-### 4. Create the first admin user
+### 5. Open the app
 
-```bash
-curl -X POST http://localhost:8081/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "changeme", "role": "ADMIN"}'
-```
-
-Then log in through the browser at **http://localhost:8081**.
+Navigate to **http://localhost:8081** in your browser and log in with the default admin credentials (see below).
 
 ---
 
-## Usage
+## Configuration
 
-### Admin Console
+All sensitive settings are supplied through environment variables defined in `application-local.properties` (or as real OS env vars in production). `application.properties` reads them via `${VAR}` interpolation.
 
-After logging in you will see the navigation sidebar with these sections:
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DB_URL` | JDBC connection URL for PostgreSQL | `jdbc:postgresql://localhost:5433/exam_planning_system` |
+| `DB_USERNAME` | Database username | `exam_user` |
+| `DB_PASSWORD` | Database password | `exam_password` |
+| `JWT_SECRET` | HMAC signing secret — must be at least 32 characters | `openssl rand -base64 48` |
+| `SPRING_PROFILES_ACTIVE` | Active Spring profile (default: `local`) | `prod` |
 
-| Section | What you can do |
-|---------|----------------|
-| **Dashboard** | System-wide statistics at a glance |
-| **Exam Planning** | Select an exam, choose eligible students, run the planner or preview (dry-run) |
-| **Exams** | Create / edit exams; click the student count badge to view or remove assigned students |
-| **Students** | CRUD + bulk import from CSV / Excel |
-| **Instructors** | CRUD; duty counts update automatically after planning |
-| **Courses / Classrooms / Departments / Faculties** | Reference data CRUD |
-| **Conflicts** | Detect double-booked students or instructors |
-| **Reports** | Download PDF reports — select an exam from the dropdown |
+Fixed defaults in `application.properties`:
 
-### Bulk student import
+| Setting | Value |
+|---------|-------|
+| Server port | `8081` |
+| JWT expiry | `86400000` ms (24 hours) |
+| JPA DDL mode | `update` (Hibernate auto-creates / migrates schema) |
+| HikariCP max pool size | `10` |
 
-Prepare a file with the following header row (CSV or Excel):
+---
 
-```
-studentNo,tcNo,fullName,facultyId,departmentId
-2023001,12345678901,Ali Veli,1,3
-2023002,98765432100,Ayşe Kaya,1,3
-```
+## Default Credentials
 
-Upload via **Students → Import CSV/Excel**.
+On first startup an admin account is created automatically:
 
-### Student self-service (no login)
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `admin123` |
 
-Navigate to `#/student-query` or share the direct link. Students enter their student number to retrieve their full exam schedule with classroom and seat number.
+> **Change this password immediately after your first login.**
+
+---
+
+## Demo Data
+
+On first startup (empty database) the application seeds a complete realistic dataset. Subsequent restarts skip the seed if data already exists.
+
+| Entity | Count |
+|--------|-------|
+| Faculties | 20 |
+| Departments | 100 (5 per faculty) |
+| Instructors | ~134 (1–2 per department) |
+| Courses | 200 (2 per department) |
+| Classrooms | 30 across 5 campuses (40–500 capacity) |
+| Students | 10,200 (102 per department) |
+| Exams | 40 (20 midterms + 20 finals over 10 exam days) |
 
 ---
 
 ## API Documentation
 
-Interactive Swagger UI is available at:
+Interactive Swagger UI is available once the application is running:
 
 ```
 http://localhost:8081/swagger-ui.html
 ```
 
-The raw OpenAPI 3 spec is at `/v3/api-docs`.
+Raw OpenAPI 3 JSON:
 
-All endpoints except `/api/auth/**`, `/api/student/query/**`, and static assets require a `Bearer` JWT token obtained from `POST /api/auth/login`.
+```
+http://localhost:8081/v3/api-docs
+```
 
-Quick reference:
+All `/api/admin/**` endpoints require a `Bearer <token>` header. Obtain a token from `POST /api/auth/login`. Public endpoints (`/api/auth/**`, `/api/student/query/**`) require no authentication.
+
+Quick endpoint reference:
 
 | Group | Base path |
 |-------|-----------|
 | Auth | `/api/auth` |
-| Exam Planning | `/api/admin/exam-planning` |
+| Exam Planning (algorithm) | `/api/admin/exam-planning` |
 | Exams | `/api/admin/exams` |
 | Exam Assignments | `/api/admin/exam-assignments` |
 | Invigilator Assignments | `/api/admin/invigilator-assignments` |
@@ -193,9 +238,27 @@ Quick reference:
 | Departments | `/api/admin/departments` |
 | Faculties | `/api/admin/faculties` |
 | Users | `/api/admin/users` |
-| Public Query | `/api/student/query/**`, `/api/instructor/duties` |
+| Student self-service | `/api/student/query/{studentNo}` |
+| Instructor duties | `/api/instructor/duties` |
 
-See [`docs/EXAM_PLANNING_API.md`](docs/EXAM_PLANNING_API.md) for a detailed guide to the planning algorithm and Postman examples.
+---
+
+## Docker
+
+The `docker-compose.yml` manages the **PostgreSQL** service only. The Spring Boot application runs on the host via Gradle (or can be containerised separately).
+
+```bash
+# Start database in background
+docker-compose up -d
+
+# View logs
+docker-compose logs -f postgres
+
+# Stop and remove containers (data volume is preserved)
+docker-compose down
+```
+
+Data is persisted in the named Docker volume `exam_postgres_data`.
 
 ---
 
@@ -203,45 +266,40 @@ See [`docs/EXAM_PLANNING_API.md`](docs/EXAM_PLANNING_API.md) for a detailed guid
 
 ```
 exam-planning-system/
-├── src/main/java/com/malik/examplanningsystem/
-│   ├── config/          # Security, JWT filter & service
-│   ├── controller/      # REST controllers (one per entity)
-│   ├── dto/             # Request / response DTOs
-│   ├── entity/          # JPA entities
-│   ├── exception/       # Global exception handler + custom exceptions
-│   ├── repository/      # Spring Data JPA repositories
-│   └── service/         # Business logic (planning engine lives here)
-│
-├── src/main/resources/
-│   ├── static/
-│   │   ├── css/         # Stylesheets
-│   │   ├── fonts/       # Times New Roman TTF (for PDF generation)
-│   │   └── js/
-│   │       ├── components/   # Navbar, CrudView base component
-│   │       ├── utils/        # PdfGenerator, embedded font module
-│   │       └── views/        # One JS class per page (14 views)
-│   └── application.properties
-│
-├── docs/                # Extended documentation
+├── src/
+│   ├── main/
+│   │   ├── java/com/malik/examplanningsystem/
+│   │   │   ├── config/          # SecurityConfig, JwtAuthFilter, DataInitializer
+│   │   │   ├── controller/      # REST controllers — one per entity + planning + query
+│   │   │   ├── dto/             # Request / response DTOs, PageResponse wrapper
+│   │   │   ├── entity/          # JPA entities (Exam, Student, Instructor, Classroom, …)
+│   │   │   ├── exception/       # Global exception handler + custom exception types
+│   │   │   ├── repository/      # Spring Data JPA repositories
+│   │   │   ├── security/        # JwtService, JwtAuthFilter
+│   │   │   └── service/         # Business logic (planning algorithm, CSV/Excel import, …)
+│   │   └── resources/
+│   │       ├── static/
+│   │       │   ├── index.html        # SPA shell
+│   │       │   ├── css/              # Stylesheets
+│   │       │   └── js/
+│   │       │       ├── views/        # 14 page components (Dashboard, ExamPlanning, …)
+│   │       │       ├── components/   # Navbar
+│   │       │       ├── utils/        # PdfGenerator, embedded TimesNewRoman font
+│   │       │       ├── api.js        # Fetch wrapper + Toast notifications
+│   │       │       ├── auth.js       # JWT storage helpers
+│   │       │       └── router.js     # Hash-based client-side router
+│   │       └── application.properties
+│   └── test/                    # JUnit 5 + Spring Security Test + H2 in-memory DB
+├── .env.example                 # Template for application-local.properties
 ├── build.gradle
-└── README.md
+├── docker-compose.yml
+└── settings.gradle
 ```
 
 ---
 
-## Contributing
+## Contributing / Maintainer
 
-1. Fork the repository and create a feature branch (`git checkout -b feat/my-feature`)
-2. Follow the existing code style — Spring Boot conventions on the backend, plain ES6 class-based views on the frontend
-3. Keep commits atomic and use conventional commit prefixes (`feat:`, `fix:`, `refactor:`, `docs:`)
-4. Open a pull request against `master` with a short description of what changed and why
+Maintainer: **Malik Salimov** — [@maliksalimov](https://github.com/maliksalimov)
 
-For large changes, open an issue first to discuss the approach.
-
----
-
-## Maintainer
-
-**Malik Salimov** — [@maliksalimov](https://github.com/maliksalimov)
-
-For questions or bug reports, open an issue on GitHub.
+Pull requests and issues are welcome. Please open an issue first to discuss significant changes. For commits, follow the existing conventional-commit style (`feat:`, `fix:`, `refactor:`, `docs:`).

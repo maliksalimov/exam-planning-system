@@ -13,6 +13,7 @@ import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface ExamAssignmentRepository extends JpaRepository<ExamAssignment, Long> {
     @Query("SELECT ea FROM ExamAssignment ea JOIN FETCH ea.exam e JOIN FETCH e.course JOIN FETCH ea.student s JOIN FETCH s.faculty JOIN FETCH s.department JOIN FETCH ea.classroom")
@@ -44,4 +45,13 @@ public interface ExamAssignmentRepository extends JpaRepository<ExamAssignment, 
     boolean existsByStudentAndExam_ExamDateAndExam_ExamTime(Student student, LocalDate examDate, LocalTime examTime);
     List<ExamAssignment> findByExamAndStudentIn(Exam exam, Collection<Student> students);
     List<ExamAssignment> findByStudentInAndExam_ExamDateAndExam_ExamTime(Collection<Student> students, LocalDate examDate, LocalTime examTime);
+
+    @Query("SELECT a FROM ExamAssignment a JOIN FETCH a.student JOIN FETCH a.exam WHERE EXISTS (SELECT a2 FROM ExamAssignment a2 WHERE a2.student = a.student AND a2.exam.examDate = a.exam.examDate AND a2.exam.examTime = a.exam.examTime AND a2.exam.examId != a.exam.examId)")
+    List<ExamAssignment> findConflictingStudentAssignments();
+
+    @Query("SELECT a FROM ExamAssignment a JOIN FETCH a.classroom JOIN FETCH a.exam WHERE EXISTS (SELECT a2 FROM ExamAssignment a2 WHERE a2.classroom = a.classroom AND a2.exam.examDate = a.exam.examDate AND a2.exam.examTime = a.exam.examTime AND a2.exam.examId != a.exam.examId)")
+    List<ExamAssignment> findConflictingClassroomAssignments();
+
+    @Query("SELECT DISTINCT a.classroom FROM ExamAssignment a WHERE a.exam.examId != :examId AND a.exam.examDate = :date AND a.exam.examTime = :time AND a.classroom.classroomId IN :classroomIds")
+    List<Classroom> findClassroomsWithConflict(@Param("examId") Long examId, @Param("date") LocalDate date, @Param("time") LocalTime time, @Param("classroomIds") Set<Long> classroomIds);
 }

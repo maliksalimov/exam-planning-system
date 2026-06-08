@@ -10,6 +10,7 @@ import com.malik.examplanningsystem.repository.InvigilatorAssignmentRepository;
 import com.malik.examplanningsystem.repository.InstructorRepository;
 import com.malik.examplanningsystem.repository.StudentRepository;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -89,7 +90,7 @@ public class QueryController {
     @GetMapping("/api/instructor/duties")
     public ResponseEntity<List<Map<String, Object>>> getMyDuties(Authentication auth) {
         if (auth == null) {
-            throw new ResourceNotFoundException("Not authenticated");
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
         }
 
         String username = auth.getName();

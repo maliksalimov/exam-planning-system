@@ -229,9 +229,84 @@ export default class ExamPlanningView {
         const btn = dryRun ? this._previewBtn : this._planBtn;
         const origText = btn.textContent;
         btn.disabled = true;
-        btn.textContent = dryRun ? 'Previewing...' : 'Saving...';
+        btn.textContent = 'Checking...';
         this._resultPanel.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div></div>';
 
+        try {
+            // Step 1: validate for conflicts before writing anything
+            const validation = await Api.request(`admin/exam-planning/validate/${examId}`, {
+                method: 'POST',
+                body: JSON.stringify(studentIds)
+            });
+
+            if (validation && validation.conflictCount > 0) {
+                btn.disabled = false;
+                btn.textContent = origText;
+                this._renderConflicts(validation, dryRun);
+                return;
+            }
+
+            // Step 2: no conflicts — execute the plan
+            btn.textContent = dryRun ? 'Previewing...' : 'Saving...';
+            await this._executePlan(examId, studentIds, dryRun, btn, origText);
+        } catch (err) {
+            this._resultPanel.innerHTML = `
+                <div class="card" style="border-left: 4px solid var(--color-danger)">
+                    <h3 style="color: var(--color-danger)">Planning Failed</h3>
+                    <p style="color: var(--color-muted)">${err.message}</p>
+                </div>`;
+            btn.disabled = false;
+            btn.textContent = origText;
+        }
+    }
+
+    _renderConflicts(validation, dryRun) {
+        const { conflicts, validStudentIds, conflictCount, validCount } = validation;
+
+        const rows = conflicts.map(c => `
+            <div style="display:flex; align-items:flex-start; gap:8px; padding:6px 0; border-bottom:1px solid var(--glass-border);">
+                <div style="flex:1; font-size:12px;">
+                    <strong>${c.studentNo}</strong> — ${c.studentName}
+                    <div style="color:var(--color-danger); font-size:11px; margin-top:2px;">${c.reason}</div>
+                </div>
+            </div>`).join('');
+
+        this._resultPanel.innerHTML = `
+            <div class="card" style="border-left: 4px solid var(--color-danger)">
+                <h3 style="color:var(--color-danger); margin-bottom:var(--space-sm);">
+                    ⚠️ ${conflictCount} student${conflictCount !== 1 ? 's' : ''} cannot be included
+                </h3>
+                <div style="max-height:240px; overflow-y:auto; margin-bottom:var(--space-md);">
+                    ${rows}
+                </div>
+                ${validCount > 0 ? `
+                    <div style="display:flex; gap:var(--space-sm); flex-wrap:wrap;">
+                        <button class="btn-primary" id="ep-proceed-valid-btn">
+                            ✅ Proceed with ${validCount} eligible student${validCount !== 1 ? 's' : ''}
+                        </button>
+                        <button class="btn-secondary" id="ep-cancel-conflict-btn">Cancel</button>
+                    </div>` :
+                    `<p style="color:var(--color-danger);">No eligible students remain — nothing to plan.</p>`
+                }
+            </div>`;
+
+        document.getElementById('ep-cancel-conflict-btn')?.addEventListener('click', () => {
+            this._resultPanel.innerHTML = '';
+        });
+
+        if (validCount > 0) {
+            document.getElementById('ep-proceed-valid-btn').addEventListener('click', async () => {
+                const btn = dryRun ? this._previewBtn : this._planBtn;
+                const origText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = dryRun ? 'Previewing...' : 'Saving...';
+                this._resultPanel.innerHTML = '<div class="loading-overlay"><div class="loading-spinner"></div></div>';
+                await this._executePlan(validation.examId, validStudentIds, dryRun, btn, origText);
+            });
+        }
+    }
+
+    async _executePlan(examId, studentIds, dryRun, btn, origText) {
         try {
             const result = await Api.request(`admin/exam-planning/plan/${examId}?dryRun=${dryRun}`, {
                 method: 'POST',
@@ -246,8 +321,7 @@ export default class ExamPlanningView {
                     <p style="color: var(--color-muted)">${err.message}</p>
                 </div>`;
         } finally {
-            btn.disabled = false;
-            btn.textContent = origText;
+            if (btn) { btn.disabled = false; btn.textContent = origText; }
         }
     }
 

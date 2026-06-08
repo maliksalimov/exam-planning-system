@@ -162,6 +162,16 @@ public class StudentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Student not found with id: " + id));
     }
 
+    public List<Student> getStudentEntitiesByIds(List<Long> ids) {
+        List<Student> found = studentRepository.findAllById(ids);
+        if (found.size() != ids.size()) {
+            Set<Long> foundIds = found.stream().map(Student::getStudentId).collect(Collectors.toSet());
+            Long missingId = ids.stream().filter(id -> !foundIds.contains(id)).findFirst().orElse(-1L);
+            throw new ResourceNotFoundException("Student not found with id: " + missingId);
+        }
+        return found;
+    }
+
     @Transactional
     public StudentImportResult importStudents(MultipartFile file) throws IOException {
         String filename = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();

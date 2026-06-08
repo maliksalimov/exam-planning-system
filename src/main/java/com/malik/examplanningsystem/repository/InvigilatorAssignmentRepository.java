@@ -32,5 +32,8 @@ public interface InvigilatorAssignmentRepository extends JpaRepository<Invigilat
     long countByInstructor(Instructor instructor);
     
     List<InvigilatorAssignment> findByExam_ExamDateAndExam_ExamTime(LocalDate examDate, LocalTime examTime);
+
+    @Query("SELECT a FROM InvigilatorAssignment a JOIN FETCH a.instructor JOIN FETCH a.exam WHERE EXISTS (SELECT a2 FROM InvigilatorAssignment a2 WHERE a2.instructor = a.instructor AND a2.exam.examDate = a.exam.examDate AND a2.exam.examTime = a.exam.examTime AND a2.exam.examId != a.exam.examId)")
+    List<InvigilatorAssignment> findConflictingInvigilatorAssignments();
 }
 

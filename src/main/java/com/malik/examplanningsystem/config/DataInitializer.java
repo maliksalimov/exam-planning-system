@@ -10,6 +10,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +28,7 @@ public class DataInitializer implements ApplicationRunner {
     private final CourseRepository      courseRepository;
     private final ClassroomRepository   classroomRepository;
     private final StudentRepository     studentRepository;
+    private final ExamRepository        examRepository;
     private final PasswordEncoder       passwordEncoder;
 
     // ── name pools ──────────────────────────────────────────────────────────────
@@ -98,6 +101,9 @@ public class DataInitializer implements ApplicationRunner {
             long start = System.currentTimeMillis();
             seedAll();
             log.info("Demo data seeded in {} ms", System.currentTimeMillis() - start);
+        }
+        if (examRepository.count() == 0) {
+            seedExams();
         }
     }
 
@@ -278,5 +284,48 @@ public class DataInitializer implements ApplicationRunner {
             total += batch.size();
         }
         log.info("  {} students created", total);
+    }
+
+    // ── exams (40 exams across 10 days, 4 slots/day) ─────────────────────────
+    private void seedExams() {
+        List<Course> courses = courseRepository.findAll();
+        if (courses.isEmpty()) return;
+
+        LocalDate[] dates = {
+            LocalDate.of(2026, 7,  1), LocalDate.of(2026, 7,  2), LocalDate.of(2026, 7,  3),
+            LocalDate.of(2026, 7,  7), LocalDate.of(2026, 7,  8), LocalDate.of(2026, 7,  9),
+            LocalDate.of(2026, 7, 14), LocalDate.of(2026, 7, 15), LocalDate.of(2026, 7, 16),
+            LocalDate.of(2026, 7, 21)
+        };
+        LocalTime[] times = {
+            LocalTime.of(9, 0), LocalTime.of(11, 0), LocalTime.of(13, 0), LocalTime.of(15, 0)
+        };
+
+        int total = Math.min(dates.length * times.length, courses.size());
+        List<Exam> exams = new ArrayList<>(total);
+
+        int slot = 0;
+        outer:
+        for (LocalDate date : dates) {
+            for (LocalTime time : times) {
+                if (slot >= total) break outer;
+                Course course = courses.get(slot);
+                String type = slot < 20 ? "MIDTERM" : "FINAL";
+
+                Exam exam = new Exam();
+                exam.setCourse(course);
+                exam.setExamName(course.getCourseName() + (type.equals("MIDTERM") ? " Midterm" : " Final"));
+                exam.setExamType(type);
+                exam.setExamDate(date);
+                exam.setExamTime(time);
+                exam.setDuration(slot % 3 == 0 ? 120 : 90);
+                exam.setIsCommonExam(false);
+                exams.add(exam);
+                slot++;
+            }
+        }
+
+        examRepository.saveAll(exams);
+        log.info("  {} exams created", exams.size());
     }
 }

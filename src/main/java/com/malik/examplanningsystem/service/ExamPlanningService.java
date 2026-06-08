@@ -57,9 +57,7 @@ public class ExamPlanningService {
     public Map<String, Object> planExam(Long examId, List<Long> studentIds, boolean dryRun) {
         Exam exam = examService.getExamEntityById(examId);
 
-        List<Student> students = studentIds.stream()
-                .map(studentService::getStudentEntityById)
-                .collect(Collectors.toList());
+        List<Student> students = studentService.getStudentEntitiesByIds(studentIds);
 
         // ── Conflict: student already assigned to this exam ──
         List<ExamAssignment> existingExamAssignments = examAssignmentRepository.findByExamAndStudentIn(exam, students);
@@ -239,6 +237,55 @@ public class ExamPlanningService {
 
 
 
+    public Map<String, Object> validateStudentsForPlan(Long examId, List<Long> studentIds) {
+        Exam exam = examService.getExamEntityById(examId);
+        List<Student> students = studentService.getStudentEntitiesByIds(studentIds);
+
+        Set<Long> alreadyAssignedIds = examAssignmentRepository
+                .findByExamAndStudentIn(exam, students)
+                .stream()
+                .map(a -> a.getStudent().getStudentId())
+                .collect(Collectors.toSet());
+
+        Set<Long> timeConflictIds = examAssignmentRepository
+                .findByStudentInAndExam_ExamDateAndExam_ExamTime(students, exam.getExamDate(), exam.getExamTime())
+                .stream()
+                .filter(a -> !a.getExam().getExamId().equals(examId))
+                .map(a -> a.getStudent().getStudentId())
+                .collect(Collectors.toSet());
+
+        List<Map<String, Object>> conflicts = new ArrayList<>();
+        List<Long> validIds = new ArrayList<>();
+
+        for (Student student : students) {
+            if (alreadyAssignedIds.contains(student.getStudentId())) {
+                Map<String, Object> c = new LinkedHashMap<>();
+                c.put("studentId", student.getStudentId());
+                c.put("studentNo", student.getStudentNo());
+                c.put("studentName", student.getFullName());
+                c.put("reason", "Already assigned to this exam");
+                conflicts.add(c);
+            } else if (timeConflictIds.contains(student.getStudentId())) {
+                Map<String, Object> c = new LinkedHashMap<>();
+                c.put("studentId", student.getStudentId());
+                c.put("studentNo", student.getStudentNo());
+                c.put("studentName", student.getFullName());
+                c.put("reason", "Scheduling conflict at " + exam.getExamDate() + " " + exam.getExamTime());
+                conflicts.add(c);
+            } else {
+                validIds.add(student.getStudentId());
+            }
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("examId", examId);
+        result.put("conflicts", conflicts);
+        result.put("validStudentIds", validIds);
+        result.put("conflictCount", conflicts.size());
+        result.put("validCount", validIds.size());
+        return result;
+    }
+
     @Transactional
     public Map<String, Object> resetExamPlan(Long examId) {
         Exam exam = examService.getExamEntityById(examId);
@@ -275,65 +322,55 @@ public class ExamPlanningService {
         List<Map<String, Object>> conflicts = new ArrayList<>();
 
         // 1) Students double-booked at the same date+time across different exams
-        List<ExamAssignment> all = examAssignmentRepository.findAll();
-        Map<String, List<ExamAssignment>> byStudentSlot = all.stream().collect(
-                Collectors.groupingBy(a -> a.getStudent().getStudentId() + "|"
+        Map<String, List<ExamAssignment>> byStudentSlot = examAssignmentRepository
+                .findConflictingStudentAssignments().stream()
+                .collect(Collectors.groupingBy(a -> a.getStudent().getStudentId() + "|"
                         + a.getExam().getExamDate() + "|" + a.getExam().getExamTime()));
         for (Map.Entry<String, List<ExamAssignment>> e : byStudentSlot.entrySet()) {
-            if (e.getValue().size() > 1) {
-                ExamAssignment first = e.getValue().get(0);
-                Map<String, Object> c = new LinkedHashMap<>();
-                c.put("type", "STUDENT_DOUBLE_BOOKED");
-                c.put("studentNo", first.getStudent().getStudentNo());
-                c.put("studentName", first.getStudent().getFullName());
-                c.put("date", first.getExam().getExamDate());
-                c.put("time", first.getExam().getExamTime());
-                c.put("exams", e.getValue().stream().map(a -> a.getExam().getExamName()).collect(Collectors.toList()));
-                conflicts.add(c);
-            }
+            ExamAssignment first = e.getValue().get(0);
+            Map<String, Object> c = new LinkedHashMap<>();
+            c.put("type", "STUDENT_DOUBLE_BOOKED");
+            c.put("studentNo", first.getStudent().getStudentNo());
+            c.put("studentName", first.getStudent().getFullName());
+            c.put("date", first.getExam().getExamDate());
+            c.put("time", first.getExam().getExamTime());
+            c.put("exams", e.getValue().stream().map(a -> a.getExam().getExamName()).distinct().collect(Collectors.toList()));
+            conflicts.add(c);
         }
 
-        // 2) Instructors invigilating multiple exams at same datetime
-        List<com.malik.examplanningsystem.entity.InvigilatorAssignment> allInvig = invigilatorAssignmentRepository.findAll();
-        Map<String, List<com.malik.examplanningsystem.entity.InvigilatorAssignment>> byInstrSlot = allInvig.stream().collect(
-                Collectors.groupingBy(a -> a.getInstructor().getInstructorId() + "|"
+        // 2) Instructors invigilating multiple distinct exams at the same datetime
+        Map<String, List<InvigilatorAssignment>> byInstrSlot = invigilatorAssignmentRepository
+                .findConflictingInvigilatorAssignments().stream()
+                .collect(Collectors.groupingBy(a -> a.getInstructor().getInstructorId() + "|"
                         + a.getExam().getExamDate() + "|" + a.getExam().getExamTime()));
-        for (Map.Entry<String, List<com.malik.examplanningsystem.entity.InvigilatorAssignment>> e : byInstrSlot.entrySet()) {
-            // Same instructor can be in different rooms of SAME exam - only flag if exam differs
-            Set<Long> distinctExams = e.getValue().stream()
-                    .map(a -> a.getExam().getExamId()).collect(Collectors.toSet());
-            if (distinctExams.size() > 1) {
-                com.malik.examplanningsystem.entity.InvigilatorAssignment first = e.getValue().get(0);
-                Map<String, Object> c = new LinkedHashMap<>();
-                c.put("type", "INSTRUCTOR_DOUBLE_BOOKED");
-                c.put("staffNo", first.getInstructor().getStaffNo());
-                c.put("instructorName", first.getInstructor().getFullName());
-                c.put("date", first.getExam().getExamDate());
-                c.put("time", first.getExam().getExamTime());
-                c.put("exams", e.getValue().stream().map(a -> a.getExam().getExamName()).distinct().collect(Collectors.toList()));
-                conflicts.add(c);
-            }
+        for (Map.Entry<String, List<InvigilatorAssignment>> e : byInstrSlot.entrySet()) {
+            InvigilatorAssignment first = e.getValue().get(0);
+            Map<String, Object> c = new LinkedHashMap<>();
+            c.put("type", "INSTRUCTOR_DOUBLE_BOOKED");
+            c.put("staffNo", first.getInstructor().getStaffNo());
+            c.put("instructorName", first.getInstructor().getFullName());
+            c.put("date", first.getExam().getExamDate());
+            c.put("time", first.getExam().getExamTime());
+            c.put("exams", e.getValue().stream().map(a -> a.getExam().getExamName()).distinct().collect(Collectors.toList()));
+            conflicts.add(c);
         }
 
-        // 3) Classrooms hosting multiple distinct exams at same datetime
-        Map<String, List<ExamAssignment>> byRoomSlot = all.stream().collect(
-                Collectors.groupingBy(a -> a.getClassroom().getClassroomId() + "|"
+        // 3) Classrooms hosting multiple distinct exams at the same datetime
+        Map<String, List<ExamAssignment>> byRoomSlot = examAssignmentRepository
+                .findConflictingClassroomAssignments().stream()
+                .collect(Collectors.groupingBy(a -> a.getClassroom().getClassroomId() + "|"
                         + a.getExam().getExamDate() + "|" + a.getExam().getExamTime()));
         for (Map.Entry<String, List<ExamAssignment>> e : byRoomSlot.entrySet()) {
-            Set<Long> distinctExams = e.getValue().stream()
-                    .map(a -> a.getExam().getExamId()).collect(Collectors.toSet());
-            if (distinctExams.size() > 1) {
-                ExamAssignment first = e.getValue().get(0);
-                Map<String, Object> c = new LinkedHashMap<>();
-                c.put("type", "CLASSROOM_DOUBLE_BOOKED");
-                c.put("classroom", first.getClassroom().getCampus() + " - "
-                        + first.getClassroom().getBuilding() + " - "
-                        + first.getClassroom().getRoomName());
-                c.put("date", first.getExam().getExamDate());
-                c.put("time", first.getExam().getExamTime());
-                c.put("exams", e.getValue().stream().map(a -> a.getExam().getExamName()).distinct().collect(Collectors.toList()));
-                conflicts.add(c);
-            }
+            ExamAssignment first = e.getValue().get(0);
+            Map<String, Object> c = new LinkedHashMap<>();
+            c.put("type", "CLASSROOM_DOUBLE_BOOKED");
+            c.put("classroom", first.getClassroom().getCampus() + " - "
+                    + first.getClassroom().getBuilding() + " - "
+                    + first.getClassroom().getRoomName());
+            c.put("date", first.getExam().getExamDate());
+            c.put("time", first.getExam().getExamTime());
+            c.put("exams", e.getValue().stream().map(a -> a.getExam().getExamName()).distinct().collect(Collectors.toList()));
+            conflicts.add(c);
         }
 
         return conflicts;
@@ -344,9 +381,7 @@ public class ExamPlanningService {
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found: " + request.getCourseId()));
 
-        List<Student> students = request.getStudentIds().stream()
-                .map(studentService::getStudentEntityById)
-                .collect(Collectors.toList());
+        List<Student> students = studentService.getStudentEntitiesByIds(request.getStudentIds());
 
         if (students.isEmpty()) {
             throw new IllegalArgumentException("At least one student is required");
@@ -444,31 +479,19 @@ public class ExamPlanningService {
         Set<Long> myClassroomIds = assignments.stream()
                 .map(a -> a.getClassroom().getClassroomId()).collect(Collectors.toSet());
 
-        examAssignmentRepository
-                .findByStudentInAndExam_ExamDateAndExam_ExamTime(
-                        examAssignmentRepository.findAll().stream()
-                                .filter(a -> !a.getExam().getExamId().equals(examId))
-                                .filter(a -> myClassroomIds.contains(a.getClassroom().getClassroomId()))
-                                .filter(a -> a.getExam().getExamDate().equals(exam.getExamDate())
-                                        && a.getExam().getExamTime().equals(exam.getExamTime()))
-                                .map(ExamAssignment::getStudent)
-                                .distinct()
-                                .collect(Collectors.toList()),
-                        exam.getExamDate(), exam.getExamTime())
-                .stream()
-                .filter(a -> !a.getExam().getExamId().equals(examId))
-                .filter(a -> myClassroomIds.contains(a.getClassroom().getClassroomId()))
-                .map(ExamAssignment::getClassroom)
-                .distinct()
-                .forEach(classroom -> {
-                    Map<String, Object> c = new LinkedHashMap<>();
-                    c.put("type", "CLASSROOM_DOUBLE_BOOKED");
-                    c.put("classroom", classroom.getCampus() + " - "
-                            + classroom.getBuilding() + " - " + classroom.getRoomName());
-                    c.put("date", exam.getExamDate());
-                    c.put("time", exam.getExamTime());
-                    conflicts.add(c);
-                });
+        if (!myClassroomIds.isEmpty()) {
+            examAssignmentRepository
+                    .findClassroomsWithConflict(examId, exam.getExamDate(), exam.getExamTime(), myClassroomIds)
+                    .forEach(classroom -> {
+                        Map<String, Object> c = new LinkedHashMap<>();
+                        c.put("type", "CLASSROOM_DOUBLE_BOOKED");
+                        c.put("classroom", classroom.getCampus() + " - "
+                                + classroom.getBuilding() + " - " + classroom.getRoomName());
+                        c.put("date", exam.getExamDate());
+                        c.put("time", exam.getExamTime());
+                        conflicts.add(c);
+                    });
+        }
 
         return conflicts;
     }

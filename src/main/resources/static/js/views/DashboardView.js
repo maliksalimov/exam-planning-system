@@ -69,20 +69,21 @@ export default class DashboardView {
                 return r && r.totalElements != null ? r.totalElements : (Array.isArray(r) ? r.length : 0);
             };
 
-            const [students, exams, users, instructors, classrooms, faculties] = await Promise.all([
+            const [students, examCount, users, instructors, classrooms, faculties, recentExamsPage] = await Promise.all([
                 toCount('admin/students'),
                 toCount('admin/exams'),
                 toCount('admin/users'),
                 toCount('admin/instructors'),
                 toCount('admin/classrooms'),
-                toCount('admin/faculties')
+                toCount('admin/faculties'),
+                Api.request('admin/exams?page=0&size=10')
             ]);
 
             const statStudents = document.getElementById('stat-students');
             if (!statStudents) return;
 
             statStudents.innerText = students;
-            document.getElementById('stat-exams').innerText = exams;
+            document.getElementById('stat-exams').innerText = examCount;
             document.getElementById('stat-users').innerText = users;
             document.getElementById('stat-instructors').innerText = instructors;
             document.getElementById('stat-classrooms').innerText = classrooms;
@@ -90,15 +91,21 @@ export default class DashboardView {
 
             const tableBody = document.getElementById('dashboard-exam-table');
             if (!tableBody) return;
-            tableBody.innerHTML = exams.slice(0, 10).map(exam => `
-                <tr>
-                    <td style="font-weight: 500">${exam.examName}</td>
-                    <td><span class="badge badge--info">${exam.examType}</span></td>
-                    <td>${exam.examDate}</td>
-                    <td>${exam.examTime}</td>
-                    <td>${exam.courseName}</td>
-                </tr>
-            `).join('');
+            const recentExams = (recentExamsPage && Array.isArray(recentExamsPage.content))
+                ? recentExamsPage.content : [];
+            if (recentExams.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--color-muted);">No exams yet</td></tr>`;
+            } else {
+                tableBody.innerHTML = recentExams.map(exam => `
+                    <tr>
+                        <td style="font-weight: 500">${exam.examName}</td>
+                        <td><span class="badge badge--info">${exam.examType || '-'}</span></td>
+                        <td>${exam.examDate}</td>
+                        <td>${exam.examTime}</td>
+                        <td>${exam.courseName}</td>
+                    </tr>
+                `).join('');
+            }
 
         } catch (err) {
             console.error('Dashboard mount error:', err);
