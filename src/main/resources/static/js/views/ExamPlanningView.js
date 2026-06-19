@@ -409,8 +409,8 @@ export default class ExamPlanningView {
                     </div>
                 </div>
                 ${!isDryRun ? `<div style="margin-top: var(--space-sm); width: 100%; display:flex; gap: var(--space-sm); flex-wrap:wrap;">
-                    <button class="btn-primary" id="ep-pdf-general" style="flex:1">📄 Genel Sınav Planı PDF</button>
-                    <button class="btn-secondary" id="ep-pdf-duties" style="flex:1">📋 Gözetmen Görev Dağılımı PDF</button>
+                    <button class="btn-primary" id="ep-pdf-general" style="flex:1">📄 General Exam Plan PDF</button>
+                    <button class="btn-secondary" id="ep-pdf-duties" style="flex:1">📋 Invigilator Duty Assignment PDF</button>
                 </div>` : ''}
             </div>
         `;

@@ -5,8 +5,8 @@ export default class InstructorQueryView {
         return `
         <div class="page-container">
             <header class="page-header">
-                <h1>Gözetmenlik Görevlerim</h1>
-                <button class="btn-secondary" id="iq-pdf-btn">📋 Görev Listesi PDF</button>
+                <h1>My Invigilation Duties</h1>
+                <button class="btn-secondary" id="iq-pdf-btn">📋 Duty List PDF</button>
             </header>
             <div id="iq-result" class="result-tree">
                 <div class="loading-overlay"><div class="loading-spinner"></div></div>
@@ -58,21 +58,21 @@ export default class InstructorQueryView {
                             <span class="badge badge--info">${duty.examTime}</span>
                         </div>
                         <div class="result-room-card__section">
-                            <div style="font-size: var(--font-size-sm); color: var(--color-muted); font-weight: bold;">Derslik</div>
+                            <div style="font-size: var(--font-size-sm); color: var(--color-muted); font-weight: bold;">Classroom</div>
                             <div style="font-size: var(--font-size-md);">
                                 🏛️ ${duty.campus} / ${duty.building} — <strong>${duty.classroom}</strong>
                             </div>
                         </div>
                         <div class="result-room-card__section">
-                            <div style="font-size: var(--font-size-sm); color: var(--color-muted); font-weight: bold;">Sınıftaki Öğrenci Sayısı</div>
+                            <div style="font-size: var(--font-size-sm); color: var(--color-muted); font-weight: bold;">Students in Classroom</div>
                             <div style="font-size: var(--font-size-md);">
-                                👥 <strong>${duty.studentCount ?? '—'}</strong> öğrenci
+                                👥 <strong>${duty.studentCount ?? '—'}</strong> students
                             </div>
                         </div>
                         <div style="display:flex; gap: var(--space-sm); margin-top: var(--space-xs);">
                             <button class="btn-secondary iq-pdf-sign" data-id="${duty.invigilationId}"
                                 style="font-size: 11px; padding: 4px 10px;">
-                                📄 İmza Listesi PDF
+                                📄 Sign Sheet PDF
                             </button>
                         </div>
                     </div>`;
@@ -95,7 +95,7 @@ export default class InstructorQueryView {
                             capacity: '—',
                             studentsAssigned: '—',
                             invigilatorRule: '',
-                            invigilatorNames: [duty.instructorName || auth?.name || 'Gözetmen'],
+                            invigilatorNames: [duty.instructorName || auth?.name || 'Invigilator'],
                             studentNumbers: []
                         };
                         const mockExam = {
@@ -112,7 +112,7 @@ export default class InstructorQueryView {
             console.error(err);
             this._result.innerHTML = `
                 <div class="card" style="border-left: 4px solid var(--color-danger); color: var(--color-danger);">
-                    Görev listesi yüklenemedi. Lütfen oturumunuzu kontrol edin.
+                    Failed to load duty list. Please check your session.
                 </div>`;
         }
 
@@ -122,7 +122,7 @@ export default class InstructorQueryView {
                 import('../utils/PdfGenerator.js').then(m => {
                     const today = new Date().toISOString().slice(0, 10);
                     const dutyRows = this._duties.map(d => ({
-                        instructorName: d.instructorName || 'Gözetmen',
+                        instructorName: d.instructorName || 'Invigilator',
                         examName: d.examName,
                         examTime: d.examTime,
                         classroom: `${d.campus}/${d.building}-${d.classroom}`,

@@ -69,10 +69,10 @@ export default class ExamView extends CrudView {
                     <button data-act="close" class="btn-secondary" style="padding:4px 12px;">✕</button>
                 </div>
                 <div style="padding: var(--space-sm) var(--space-md) 0; display:flex; gap:var(--space-sm); align-items:center; flex-wrap:wrap;">
-                    <span id="ev-sel-count" style="font-size:var(--font-size-sm); color:var(--color-muted);">0 seçili</span>
+                    <span id="ev-sel-count" style="font-size:var(--font-size-sm); color:var(--color-muted);">0 selected</span>
                     <button id="ev-save-remove" class="btn-primary" disabled
                         style="padding:6px 16px; font-size:var(--font-size-sm); background:var(--color-danger); border-color:var(--color-danger);">
-                        Seçilenleri Çıkar
+                        Remove Selected
                     </button>
                 </div>
                 <div id="ev-student-body" style="overflow-y:auto; padding: var(--space-md);">
@@ -88,7 +88,7 @@ export default class ExamView extends CrudView {
             const checked = overlay.querySelectorAll('.ev-cb:checked').length;
             const label = overlay.querySelector('#ev-sel-count');
             const btn   = overlay.querySelector('#ev-save-remove');
-            if (label) label.textContent = `${checked} seçili`;
+            if (label) label.textContent = `${checked} selected`;
             if (btn)   btn.disabled = checked === 0;
         };
 
@@ -117,7 +117,7 @@ export default class ExamView extends CrudView {
                             <thead>
                                 <tr style="text-align:left; color:var(--color-muted); border-bottom:1px solid var(--glass-border);">
                                     <th style="padding:4px 8px; width:32px;">
-                                        <input type="checkbox" class="ev-cb-all" title="Tümünü seç">
+                                        <input type="checkbox" class="ev-cb-all" title="Select all">
                                     </th>
                                     <th style="padding:4px 8px;">Seat</th>
                                     <th style="padding:4px 8px;">Student No</th>
@@ -159,18 +159,18 @@ export default class ExamView extends CrudView {
             if (!checked.length) return;
             const btn = overlay.querySelector('#ev-save-remove');
             btn.disabled = true;
-            btn.textContent = 'Çıkarılıyor…';
+            btn.textContent = 'Removing…';
             try {
                 await Promise.all(
                     checked.map(cb => Api.request(`admin/exam-assignments/${cb.dataset.assignmentId}`, { method: 'DELETE' }))
                 );
-                Toast.success(`${checked.length} öğrenci sınavdan çıkarıldı.`);
+                Toast.success(`${checked.length} student(s) removed from exam.`);
                 await renderStudents();
                 await this._loadData();
             } catch (err) {
                 Toast.error('Remove failed: ' + err.message);
                 btn.disabled = false;
-                btn.textContent = 'Seçilenleri Çıkar';
+                btn.textContent = 'Remove Selected';
             }
         });
 

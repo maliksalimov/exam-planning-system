@@ -22,6 +22,8 @@ export class CrudView {
         this._totalPages = 0;
         this._totalElements = 0;
         this._pageSize = 50;
+        this._searchQuery = '';
+        this._searchTimer = null;
     }
 
     getHtml() {
@@ -34,6 +36,17 @@ export class CrudView {
                     <button class="btn-primary" id="crud-add-btn">+ Add New</button>
                 </div>
             </header>
+
+            <div style="display:flex; align-items:center; gap: var(--space-sm); margin-bottom: var(--space-md);">
+                <input
+                    class="form-input"
+                    id="crud-search-input"
+                    type="text"
+                    placeholder="Search ${this.title.toLowerCase()}…"
+                    style="max-width:360px; margin:0;"
+                />
+                <span id="crud-search-count" style="font-size:0.85rem; color:var(--color-muted); white-space:nowrap;"></span>
+            </div>
 
             <div class="table-wrapper">
                 <table>
@@ -125,6 +138,19 @@ export class CrudView {
         this._tableBody.addEventListener('click', this._onTableClick);
         if (this._prevBtn) this._prevBtn.addEventListener('click', this._onPrev);
         if (this._nextBtn) this._nextBtn.addEventListener('click', this._onNext);
+
+        this._searchInput = document.getElementById('crud-search-input');
+        this._searchCount = document.getElementById('crud-search-count');
+        if (this._searchInput) {
+            this._onSearch = () => {
+                clearTimeout(this._searchTimer);
+                this._searchTimer = setTimeout(() => {
+                    this._searchQuery = this._searchInput.value.trim().toLowerCase();
+                    this._renderTable();
+                }, 250);
+            };
+            this._searchInput.addEventListener('input', this._onSearch);
+        }
         
         // Custom Actions
         document.querySelectorAll('.crud-custom-action').forEach(btn => {
@@ -205,11 +231,27 @@ export class CrudView {
     }
 
     _renderTable() {
-        if (this._data.length === 0) {
-            this._tableBody.innerHTML = `<tr><td colspan="${this.columns.length + 1}" style="text-align:center; color: var(--color-muted);">No records found</td></tr>`;
+        const q = this._searchQuery || '';
+        const rows = q
+            ? this._data.filter(row =>
+                this.columns.some(c => {
+                    const val = row[c.key];
+                    return val != null && String(val).toLowerCase().includes(q);
+                })
+              )
+            : this._data;
+
+        if (this._searchCount) {
+            this._searchCount.textContent = q
+                ? `${rows.length} of ${this._data.length} result${rows.length !== 1 ? 's' : ''}`
+                : '';
+        }
+
+        if (rows.length === 0) {
+            this._tableBody.innerHTML = `<tr><td colspan="${this.columns.length + 1}" style="text-align:center; color: var(--color-muted);">${q ? 'No results match your search.' : 'No records found'}</td></tr>`;
             return;
         }
-        this._tableBody.innerHTML = this._data.map(row => `
+        this._tableBody.innerHTML = rows.map(row => `
             <tr>
                 ${this.columns.map(c => `<td>${c.render ? c.render(row[c.key], row) : (row[c.key] ?? '-')}</td>`).join('')}
                 <td style="text-align:center;">
@@ -333,17 +375,24 @@ export class CrudView {
     }
 
     unmount() {
-        if (this._addBtn)   this._addBtn.removeEventListener('click', this._onAdd);
-        if (this._closeBtn) this._closeBtn.removeEventListener('click', this._onClose);
-        if (this._form)     this._form.removeEventListener('submit', this._onSubmit);
-        if (this._tableBody) this._tableBody.removeEventListener('click', this._onTableClick);
-        if (this._prevBtn)  this._prevBtn.removeEventListener('click', this._onPrev);
-        if (this._nextBtn)  this._nextBtn.removeEventListener('click', this._onNext);
+        if (this._addBtn)     this._addBtn.removeEventListener('click', this._onAdd);
+        if (this._closeBtn)   this._closeBtn.removeEventListener('click', this._onClose);
+        if (this._form)       this._form.removeEventListener('submit', this._onSubmit);
+        if (this._tableBody)  this._tableBody.removeEventListener('click', this._onTableClick);
+        if (this._prevBtn)    this._prevBtn.removeEventListener('click', this._onPrev);
+        if (this._nextBtn)    this._nextBtn.removeEventListener('click', this._onNext);
+        if (this._searchInput && this._onSearch) {
+            this._searchInput.removeEventListener('input', this._onSearch);
+        }
+        clearTimeout(this._searchTimer);
         this._addBtn = null;
         this._modal = null;
         this._form = null;
         this._tableBody = null;
         this._pagination = null;
+        this._searchInput = null;
+        this._searchCount = null;
+        this._searchQuery = '';
         this._data = [];
     }
 }
